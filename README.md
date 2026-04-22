@@ -6,7 +6,7 @@ Static web prototype implemented with HTML canvas.
 
 ### Run locally
 
-Open `/home/runner/work/game-idea-prototypes/game-idea-prototypes/index.html` in a browser.
+Open `index.html` in a browser.
 
 ### Controls
 

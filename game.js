@@ -4,6 +4,11 @@ const ctx = canvas.getContext("2d");
 const TILE = 32;
 const COLS = 30;
 const ROWS = 20;
+const BASE_ENEMY_SPEED = 62;
+const ENEMY_SPEED_VARIANCE = 28;
+const ENEMY_SPEED_SCALING = 0.15;
+const DOUBLE_DROP_CHANCE = 0.45;
+const ENEMY_SEPARATION_DISTANCE = 28;
 
 const MAZE = [
   "##############################",
@@ -174,7 +179,7 @@ function spawnEnemy() {
     y: spawn.y,
     r: 10,
     hp: 2,
-    speed: 62 + Math.random() * 28 + state.runScore * 0.15,
+    speed: BASE_ENEMY_SPEED + Math.random() * ENEMY_SPEED_VARIANCE + state.runScore * ENEMY_SPEED_SCALING,
     touchDamage: 1,
     hitCooldown: 0,
   });
@@ -227,7 +232,7 @@ function updateRun(dt) {
         state.bullets.splice(i, 1);
         if (e.hp <= 0) {
           state.enemies.splice(j, 1);
-          const dropCount = Math.random() < 0.45 ? 2 : 1;
+          const dropCount = Math.random() < DOUBLE_DROP_CHANCE ? 2 : 1;
           for (let k = 0; k < dropCount; k++) {
             state.pickups.push({
               x: e.x + (Math.random() - 0.5) * 10,
@@ -259,7 +264,7 @@ function updateRun(dt) {
       const ddx = e.x - o.x;
       const ddy = e.y - o.y;
       const d = Math.hypot(ddx, ddy);
-      if (d > 0 && d < 28) {
+      if (d > 0 && d < ENEMY_SEPARATION_DISTANCE) {
         sepX += ddx / d;
         sepY += ddy / d;
       }
