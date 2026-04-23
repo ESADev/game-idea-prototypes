@@ -67,8 +67,15 @@ const SHIP_SPEED = 380;
 const DROP_SPEED = 150;
 const ALIEN_SPEED_BASE = 20;
 const ENEMY_BULLET_SPEED = 210;
-
-const keys = new Set<string>();
+const MAX_DELTA_TIME = 0.034;
+const CORE_FIRE_COOLDOWN = 0.11;
+const BLASTER_PART_COOLDOWN = 0.45;
+const LASER_PART_COOLDOWN = 0.34;
+const SPREAD_PART_COOLDOWN = 0.68;
+const BLASTER_ALIEN_COOLDOWN = 1.9;
+const LASER_ALIEN_COOLDOWN = 1.4;
+const SPREAD_ALIEN_COOLDOWN = 2.3;
+const DROP_RATE_PROBABILITY = 0.9;
 
 function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
@@ -405,12 +412,15 @@ function drawGame(ctx: CanvasRenderingContext2D, state: GameState): void {
 export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameRef = useRef<GameState>(makeInitialState());
+  const keysRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    const keyState = keysRef.current;
+
     const onDown = (e: KeyboardEvent) => {
       if (["ArrowLeft", "ArrowRight", "a", "d", " ", "Enter"].includes(e.key)) e.preventDefault();
-      keys.add(e.key.toLowerCase());
-      if (e.key === " ") keys.add("space");
+      keyState.add(e.key.toLowerCase());
+      if (e.key === " ") keyState.add("space");
       if (e.key === "Enter") {
         const state = gameRef.current;
         if (state.status !== "playing") startRun(state);
@@ -418,8 +428,8 @@ export default function Home() {
     };
 
     const onUp = (e: KeyboardEvent) => {
-      keys.delete(e.key.toLowerCase());
-      if (e.key === " ") keys.delete("space");
+      keyState.delete(e.key.toLowerCase());
+      if (e.key === " ") keyState.delete("space");
     };
 
     window.addEventListener("keydown", onDown);
@@ -432,10 +442,11 @@ export default function Home() {
     let raf = 0;
 
     const loop = (t: number) => {
-      const dt = clamp((t - last) / 1000, 0, 0.034);
+      const dt = clamp((t - last) / 1000, 0, MAX_DELTA_TIME);
       last = t;
 
       const state = gameRef.current;
+      const keys = keyState;
       if (state.status === "playing") {
         const left = keys.has("arrowleft") || keys.has("a");
         const right = keys.has("arrowright") || keys.has("d");
@@ -450,7 +461,7 @@ export default function Home() {
         state.coreFireCooldown -= dt;
         if (keys.has("space") && state.coreFireCooldown <= 0) {
           addPlayerBullet(state, state.coreX, state.coreY - CORE_SIZE / 2, "core");
-          state.coreFireCooldown = 0.11;
+          state.coreFireCooldown = CORE_FIRE_COOLDOWN;
         }
 
         for (const part of state.parts) {
@@ -458,7 +469,12 @@ export default function Home() {
           if (part.fireCooldown <= 0) {
             const p = getPartWorldPosition(state, part);
             addPlayerBullet(state, p.x, p.y - PART_SIZE / 2, part.type);
-            part.fireCooldown = part.type === "laser" ? 0.34 : part.type === "spread" ? 0.68 : 0.45;
+            part.fireCooldown =
+              part.type === "laser"
+                ? LASER_PART_COOLDOWN
+                : part.type === "spread"
+                  ? SPREAD_PART_COOLDOWN
+                  : BLASTER_PART_COOLDOWN;
           }
         }
 
@@ -469,7 +485,12 @@ export default function Home() {
           alien.fireCooldown -= dt;
           if (alien.fireCooldown <= 0) {
             alienShoot(state, alien);
-            alien.fireCooldown = alien.type === "laser" ? 1.4 : alien.type === "spread" ? 2.3 : 1.9;
+            alien.fireCooldown =
+              alien.type === "laser"
+                ? LASER_ALIEN_COOLDOWN
+                : alien.type === "spread"
+                  ? SPREAD_ALIEN_COOLDOWN
+                  : BLASTER_ALIEN_COOLDOWN;
           }
           if (alien.y > HEIGHT - 70) {
             state.status = "gameover";
@@ -500,7 +521,7 @@ export default function Home() {
                 consumed = true;
                 if (a.hp <= 0) {
                   state.score += 100;
-                  if (Math.random() < 0.9) {
+                  if (Math.random() < DROP_RATE_PROBABILITY) {
                     state.drops.push({
                       id: state.nextId++,
                       x: a.x,
@@ -593,7 +614,7 @@ export default function Home() {
       cancelAnimationFrame(raf);
       window.removeEventListener("keydown", onDown);
       window.removeEventListener("keyup", onUp);
-      keys.clear();
+      keyState.clear();
     };
   }, []);
 
