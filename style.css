@@ -1,0 +1,81 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #0f1117;
+  color: #e9ecf5;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px minmax(560px, 1fr);
+  gap: 16px;
+  padding: 16px;
+}
+
+.panel {
+  background: #171b26;
+  border: 1px solid #2a3145;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.control-group {
+  margin-bottom: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+button,
+select,
+input {
+  background: #252d40;
+  color: #f3f5ff;
+  border: 1px solid #3d4a68;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+button {
+  cursor: pointer;
+  margin-right: 8px;
+  margin-top: 4px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.game-area {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+canvas {
+  background: #11141d;
+  border: 1px solid #2a3145;
+  border-radius: 10px;
+}
+
+#shop {
+  display: grid;
+  gap: 8px;
+}
+
+.shop-item {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid #343f59;
+  border-radius: 8px;
+}
+
+h1,
+h2 {
+  margin-top: 0;
+}
