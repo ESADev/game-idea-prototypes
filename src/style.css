@@ -1,0 +1,177 @@
+:root {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: #f4f5f8;
+  background: #11131a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #1b2030, #0d0f15 65%);
+}
+
+#app {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.ui-shell {
+  width: min(100%, 980px);
+  background: rgba(15, 18, 27, 0.93);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+h1 {
+  margin: 0;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.subtitle {
+  text-align: center;
+  margin: 10px 0 18px;
+  color: #b9c3dd;
+}
+
+.piece-picker {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+button {
+  border: 1px solid #4e5875;
+  background: #232a40;
+  color: #f7f8ff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+.tips {
+  margin: 16px auto 0;
+  width: fit-content;
+  color: #c6cde3;
+}
+
+.game-screen {
+  display: grid;
+  gap: 10px;
+}
+
+.hud {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 6px;
+  font-size: 0.92rem;
+  background: #171c2b;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.status {
+  border-radius: 8px;
+  padding: 10px;
+  background: #1d2436;
+  color: #d5ddf3;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.status.gameover {
+  background: #4a1218;
+  color: #ffd6dc;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(var(--size), minmax(0, 1fr));
+  border: 2px solid #3f4a6a;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.cell {
+  aspect-ratio: 1 / 1;
+  border-radius: 0;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: clamp(0.9rem, 2.2vw, 1.45rem);
+}
+
+.cell.light {
+  background: #e6ebff;
+}
+
+.cell.dark {
+  background: #a5b4d8;
+}
+
+.cell.valid {
+  box-shadow: inset 0 0 0 4px rgba(81, 255, 154, 0.65);
+}
+
+.cell.danger {
+  background: #6f1d2c;
+}
+
+.cell.valid.danger {
+  box-shadow: inset 0 0 0 4px rgba(255, 191, 191, 0.85);
+}
+
+.cell.cursor {
+  box-shadow: inset 0 0 0 4px #ffe17a;
+}
+
+.piece {
+  pointer-events: none;
+}
+
+.player {
+  color: #12204f;
+}
+
+.enemy {
+  color: #240d15;
+}
+
+.power {
+  color: #0d3f25;
+  font-size: clamp(0.7rem, 1.9vw, 1.2rem);
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  color: #bdc6df;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 820px) {
+  .ui-shell {
+    padding: 12px;
+  }
+
+  .hud {
+    font-size: 0.8rem;
+  }
+}
