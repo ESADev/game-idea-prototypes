@@ -16,6 +16,11 @@ const rows = 12;
 const cell = 80;
 const simSteps = 150;
 const dt = 0.08;
+const TIER_ESCALATION_RATE = 30;
+const HEAVY_BALL_SPEED = 7;
+const NORMAL_BALL_SPEED = 9;
+const BASE_DAMAGE = 2;
+const HEAVY_DAMAGE_MULTIPLIER = 1.45;
 
 const baseUpgradeDefs = {
   damage: { label: '+1 Base Ball Damage', key: 'damage', baseCost: 20, growth: 1.45 },
@@ -71,7 +76,7 @@ function spawnWave() {
       attempts += 1;
     }
 
-    const tier = Math.min(3, getEnemyTier(state.turn) + (Math.random() < state.turn / 30 ? 1 : 0));
+    const tier = Math.min(3, getEnemyTier(state.turn) + (Math.random() < state.turn / TIER_ESCALATION_RATE ? 1 : 0));
     const hp = tier === 1 ? 3 : tier === 2 ? 6 : 10;
     const weight = tier === 1 ? 1 : tier === 2 ? 1.9 : 3;
 
@@ -93,7 +98,7 @@ function createBall() {
   const angle = Number(angleInput.value) * (Math.PI / 180);
   const column = Number(startColumnInput.value);
   const type = ballTypeInput.value;
-  const speed = type === 'heavy' ? 7 : 9;
+  const speed = type === 'heavy' ? HEAVY_BALL_SPEED : NORMAL_BALL_SPEED;
 
   const ball = {
     x: column + 0.5,
@@ -103,7 +108,7 @@ function createBall() {
     radius: 0.28,
     type,
     mass: type === 'heavy' ? 3 : 1,
-    damage: (2 + state.upgrades.damage) * (type === 'heavy' ? 1.45 : 1),
+    damage: (BASE_DAMAGE + state.upgrades.damage) * (type === 'heavy' ? HEAVY_DAMAGE_MULTIPLIER : 1),
     bounce: type !== 'heavy',
     pierce: type === 'heavy',
     alive: true
@@ -336,7 +341,15 @@ function renderShop() {
     const level = state.upgrades[def.key];
     const item = document.createElement('div');
     item.className = 'shop-item';
-    item.innerHTML = `<strong>${def.label}</strong><span>Level: ${level}</span><span>Cost: ${cost}</span>`;
+    const title = document.createElement('strong');
+    title.textContent = def.label;
+    const levelEl = document.createElement('span');
+    levelEl.textContent = `Level: ${level}`;
+    const costEl = document.createElement('span');
+    costEl.textContent = `Cost: ${cost}`;
+    item.appendChild(title);
+    item.appendChild(levelEl);
+    item.appendChild(costEl);
     const btn = document.createElement('button');
     btn.textContent = 'Buy';
     btn.disabled = state.runActive || state.currency < cost;
@@ -406,19 +419,34 @@ function renderGrid() {
   ctx.restore();
 }
 
+function appendStatusLine(label, value) {
+  const line = document.createElement('p');
+  line.append(`${label}: `);
+  const strong = document.createElement('strong');
+  strong.textContent = value;
+  line.appendChild(strong);
+  statusEl.appendChild(line);
+}
+
 function render() {
   startValueEl.textContent = startColumnInput.value;
   angleValueEl.textContent = angleInput.value;
 
-  statusEl.innerHTML = `
-    <p><strong>${state.message}</strong></p>
-    <p>Currency: <strong>${state.currency}</strong></p>
-    <p>Turn: <strong>${state.turn}/${state.maxTurns}</strong> ${state.runActive ? '(Active)' : '(Between Runs)'}</p>
-    <p>Kills this run: <strong>${state.kills}</strong></p>
-    <p>Special Balls: Heavy <strong>${state.inventory.heavy}</strong>, Bomb <strong>${state.inventory.bomb}</strong></p>
-    <p>Barrier Charges: <strong>${state.barrierCharges}</strong></p>
-    <p>Upgrades: Damage ${state.upgrades.damage}, Heavy ${state.upgrades.heavy}, Bomb ${state.upgrades.bomb}, Barrier ${state.upgrades.barrier}</p>
-  `;
+  statusEl.innerHTML = '';
+  const message = document.createElement('p');
+  const messageStrong = document.createElement('strong');
+  messageStrong.textContent = state.message;
+  message.appendChild(messageStrong);
+  statusEl.appendChild(message);
+  appendStatusLine('Currency', `${state.currency}`);
+  appendStatusLine('Turn', `${state.turn}/${state.maxTurns} ${state.runActive ? '(Active)' : '(Between Runs)'}`);
+  appendStatusLine('Kills this run', `${state.kills}`);
+  appendStatusLine('Special Balls', `Heavy ${state.inventory.heavy}, Bomb ${state.inventory.bomb}`);
+  appendStatusLine('Barrier Charges', `${state.barrierCharges}`);
+  appendStatusLine(
+    'Upgrades',
+    `Damage ${state.upgrades.damage}, Heavy ${state.upgrades.heavy}, Bomb ${state.upgrades.bomb}, Barrier ${state.upgrades.barrier}`
+  );
 
   throwBtn.disabled = !state.runActive;
   newRunBtn.disabled = state.runActive;
