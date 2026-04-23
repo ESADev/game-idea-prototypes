@@ -78,7 +78,15 @@ function buildEnemyMap(excludeId = null) {
   return map
 }
 
-function slideMoves(from, deltas, blockedSet, includeEnemies = false, enemyMap = null) {
+function slideMoves(
+  from,
+  deltas,
+  blockedSet,
+  includeEnemies = false,
+  enemyMap = null,
+  capturePlayer = false,
+  playerKey = '',
+) {
   const out = []
   for (const [dx, dy] of deltas) {
     let x = from.x + dx
@@ -86,6 +94,9 @@ function slideMoves(from, deltas, blockedSet, includeEnemies = false, enemyMap =
     while (inBounds(x, y)) {
       const k = `${x},${y}`
       if (blockedSet.has(k)) {
+        if (capturePlayer && k === playerKey) {
+          out.push({ x, y })
+        }
         if (includeEnemies && enemyMap?.has(k)) {
           out.push({ x, y })
         }
@@ -100,11 +111,16 @@ function slideMoves(from, deltas, blockedSet, includeEnemies = false, enemyMap =
 }
 
 function getMoves(pieceType, from, context = {}) {
-  const { enemyMap = buildEnemyMap(), includeEnemies = true } = context
+  const {
+    enemyMap = buildEnemyMap(),
+    includeEnemies = true,
+    capturePlayer = false,
+  } = context
   const blocked = new Set()
+  const playerKey = context.playerPos ? key(context.playerPos) : ''
 
   if (context.playerPos) {
-    blocked.add(key(context.playerPos))
+    blocked.add(playerKey)
   }
 
   for (const enemy of state.enemies) {
@@ -120,7 +136,13 @@ function getMoves(pieceType, from, context = {}) {
       const y = from.y + dy
       if (!inBounds(x, y)) continue
       const k = `${x},${y}`
-      if (blocked.has(k) && !(includeEnemies && enemyMap.has(k))) continue
+      if (
+        blocked.has(k) &&
+        !(capturePlayer && k === playerKey) &&
+        !(includeEnemies && enemyMap.has(k))
+      ) {
+        continue
+      }
       out.push({ x, y })
     }
     return out
@@ -150,6 +172,8 @@ function getMoves(pieceType, from, context = {}) {
         blocked,
         includeEnemies,
         enemyMap,
+        capturePlayer,
+        playerKey,
       )
     case 'bishop':
       return slideMoves(
@@ -163,6 +187,8 @@ function getMoves(pieceType, from, context = {}) {
         blocked,
         includeEnemies,
         enemyMap,
+        capturePlayer,
+        playerKey,
       )
     case 'queen':
       return slideMoves(
@@ -180,6 +206,8 @@ function getMoves(pieceType, from, context = {}) {
         blocked,
         includeEnemies,
         enemyMap,
+        capturePlayer,
+        playerKey,
       )
     case 'king':
       return addLeaperMoves([
@@ -211,6 +239,7 @@ function computeThreatSet() {
       excludeEnemyId: enemy.id,
       enemyMap,
       includeEnemies: false,
+      capturePlayer: true,
     })
     for (const move of moves) threat.add(key(move))
   }
@@ -353,6 +382,7 @@ function resolveEnemyTurn() {
       excludeEnemyId: enemy.id,
       enemyMap: buildEnemyMap(enemy.id),
       includeEnemies: false,
+      capturePlayer: true,
     })
     return moves.some((m) => samePos(m, state.player.pos))
   })
