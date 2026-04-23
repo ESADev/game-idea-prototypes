@@ -39,7 +39,8 @@ const state = {
   runActive: false,
   inventory: { heavy: 1, bomb: 1 },
   barrierCharges: 0,
-  message: 'Press Start New Run'
+  message: 'Press Start New Run',
+  lastShopKey: ''
 };
 
 function startRun() {
@@ -76,7 +77,9 @@ function spawnWave() {
       attempts += 1;
     }
 
-    const tier = Math.min(3, getEnemyTier(state.turn) + (Math.random() < state.turn / TIER_ESCALATION_RATE ? 1 : 0));
+    const extraTierChance = state.turn / TIER_ESCALATION_RATE;
+    const bonusTier = Math.random() < extraTierChance ? 1 : 0;
+    const tier = Math.min(3, getEnemyTier(state.turn) + bonusTier);
     const hp = tier === 1 ? 3 : tier === 2 ? 6 : 10;
     const weight = tier === 1 ? 1 : tier === 2 ? 1.9 : 3;
 
@@ -451,7 +454,11 @@ function render() {
   throwBtn.disabled = !state.runActive;
   newRunBtn.disabled = state.runActive;
 
-  renderShop();
+  const shopKey = `${state.currency}|${state.runActive}|${state.upgrades.damage}|${state.upgrades.heavy}|${state.upgrades.bomb}|${state.upgrades.barrier}`;
+  if (shopKey !== state.lastShopKey) {
+    renderShop();
+    state.lastShopKey = shopKey;
+  }
   renderGrid();
 }
 
