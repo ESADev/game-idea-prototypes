@@ -405,9 +405,9 @@ function renderShop() {
     button.disabled = !unlocked || state.activeBall === type
     button.textContent = unlocked
       ? state.activeBall === type
-        ? `Equipped: ${type}`
-        : `Equip ${type}`
-      : `${type} (locked)`
+        ? `Equipped: ${type[0].toUpperCase() + type.slice(1)}`
+        : `Equip ${type[0].toUpperCase() + type.slice(1)}`
+      : `${type[0].toUpperCase() + type.slice(1)} (locked)`
   }
 }
 
