@@ -2,7 +2,15 @@ const CELL_EMPTY = 0;
 const CELL_PLAYER = 1;
 const CELL_ENEMY = 2;
 const INVALID_CELL_SCORE = -999999;
-const RANDOM_TIE_BREAKER_WEIGHT = 0.5;
+const AI_MOVE_RANDOMNESS_FACTOR = 0.5;
+const MAX_ENEMY_MOVES = 2;
+const DIFFICULTY_SCALING_FACTOR = 3;
+const BLOCK_PLAYER_THREE_SCORE = 1000;
+const CREATE_ENEMY_THREE_SCORE = 300;
+const PLAYER_NEIGHBOR_BLOCK_WEIGHT = 4;
+const ENEMY_NEIGHBOR_GROUP_WEIGHT = 2;
+const DEFAULT_RADIAL_ATTACK_RADIUS = 2;
+const ENEMY_TURN_DELAY_MS = 180;
 const DIRS = [
   [1, 0],
   [0, 1],
@@ -184,7 +192,10 @@ function endMatch() {
 }
 
 function enemyMovesPerTurn() {
-  return Math.min(2, 1 + Math.floor((state.difficulty - 1) / 3));
+  return Math.min(
+    MAX_ENEMY_MOVES,
+    1 + Math.floor((state.difficulty - 1) / DIFFICULTY_SCALING_FACTOR),
+  );
 }
 
 function wouldCreateThree(r, c, who) {
@@ -199,18 +210,20 @@ function evaluateEnemyCell(r, c) {
   if (state.board[r][c] !== CELL_EMPTY) return INVALID_CELL_SCORE;
   let score = 0;
 
-  if (wouldCreateThree(r, c, CELL_PLAYER)) score += 1000;
-  if (wouldCreateThree(r, c, CELL_ENEMY)) score += 300;
+  if (wouldCreateThree(r, c, CELL_PLAYER)) score += BLOCK_PLAYER_THREE_SCORE;
+  if (wouldCreateThree(r, c, CELL_ENEMY)) score += CREATE_ENEMY_THREE_SCORE;
 
   for (let rr = r - 1; rr <= r + 1; rr += 1) {
     for (let cc = c - 1; cc <= c + 1; cc += 1) {
       if (!inBounds(rr, cc) || (rr === r && cc === c)) continue;
-      if (state.board[rr][cc] === CELL_PLAYER) score += 4 * state.difficulty;
-      if (state.board[rr][cc] === CELL_ENEMY) score += 2;
+      if (state.board[rr][cc] === CELL_PLAYER) {
+        score += PLAYER_NEIGHBOR_BLOCK_WEIGHT * state.difficulty;
+      }
+      if (state.board[rr][cc] === CELL_ENEMY) score += ENEMY_NEIGHBOR_GROUP_WEIGHT;
     }
   }
 
-  score += Math.random() * RANDOM_TIE_BREAKER_WEIGHT;
+  score += Math.random() * AI_MOVE_RANDOMNESS_FACTOR;
   return score;
 }
 
@@ -244,7 +257,11 @@ function placeMark(r, c, who) {
   return true;
 }
 
-function useRadialAttack(centerR, centerC, radius = 2) {
+function useRadialAttack(
+  centerR,
+  centerC,
+  radius = DEFAULT_RADIAL_ATTACK_RADIUS,
+) {
   let removed = 0;
   for (let r = 0; r < state.gridSize; r += 1) {
     for (let c = 0; c < state.gridSize; c += 1) {
@@ -315,7 +332,7 @@ function finishPlayerAction() {
     endMatch();
     return;
   }
-  setTimeout(enemyTurn, 180);
+  setTimeout(enemyTurn, ENEMY_TURN_DELAY_MS);
 }
 
 function onPlayerBoardClick(r, c) {
@@ -335,7 +352,9 @@ function onPlayerBoardClick(r, c) {
       return;
     }
     const removed =
-      state.mode === "radial" ? useRadialAttack(r, c, 2) : useLaserAttack(r, c);
+      state.mode === "radial"
+        ? useRadialAttack(r, c, DEFAULT_RADIAL_ATTACK_RADIUS)
+        : useLaserAttack(r, c);
     state.playerCharges -= 1;
     setInfo(`Special attack used. Removed ${removed} enemy marks.`);
     setMode("normal");
