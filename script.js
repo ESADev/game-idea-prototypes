@@ -1,6 +1,8 @@
 const CELL_EMPTY = 0;
 const CELL_PLAYER = 1;
 const CELL_ENEMY = 2;
+const INVALID_CELL_SCORE = -999999;
+const RANDOM_TIE_BREAKER_WEIGHT = 0.5;
 const DIRS = [
   [1, 0],
   [0, 1],
@@ -51,8 +53,10 @@ const el = {
   startNext: document.getElementById("start-next"),
 };
 
-function createEmptyBoard(size) {
-  return Array.from({ length: size }, () => Array(size).fill(CELL_EMPTY));
+function createEmptyBoard(gridSize) {
+  return Array.from({ length: gridSize }, () =>
+    Array(gridSize).fill(CELL_EMPTY),
+  );
 }
 
 function inBounds(r, c) {
@@ -192,7 +196,7 @@ function wouldCreateThree(r, c, who) {
 }
 
 function evaluateEnemyCell(r, c) {
-  if (state.board[r][c] !== CELL_EMPTY) return -999999;
+  if (state.board[r][c] !== CELL_EMPTY) return INVALID_CELL_SCORE;
   let score = 0;
 
   if (wouldCreateThree(r, c, CELL_PLAYER)) score += 1000;
@@ -206,13 +210,13 @@ function evaluateEnemyCell(r, c) {
     }
   }
 
-  score += Math.random() * 0.5;
+  score += Math.random() * RANDOM_TIE_BREAKER_WEIGHT;
   return score;
 }
 
 function pickEnemyMove() {
   let best = null;
-  let bestScore = -999999;
+  let bestScore = INVALID_CELL_SCORE;
   for (let r = 0; r < state.gridSize; r += 1) {
     for (let c = 0; c < state.gridSize; c += 1) {
       const sc = evaluateEnemyCell(r, c);
