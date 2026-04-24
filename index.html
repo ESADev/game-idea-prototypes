@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grid Clash Prototype</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="panel">
+        <h1>Grid Clash</h1>
+        <p class="subtitle">Tic-Tac-Toe Area Control Prototype</p>
+
+        <div class="stats">
+          <div><strong>Grid:</strong> <span id="grid-size"></span></div>
+          <div><strong>Difficulty:</strong> <span id="difficulty"></span></div>
+          <div><strong>Strategic Points:</strong> <span id="points"></span></div>
+          <div><strong>Charges:</strong> <span id="charges"></span></div>
+          <div><strong>Turn:</strong> <span id="turn"></span></div>
+          <div><strong>Your Cells:</strong> <span id="player-cells"></span></div>
+          <div><strong>Enemy Cells:</strong> <span id="enemy-cells"></span></div>
+          <div><strong>Empty Cells:</strong> <span id="empty-cells"></span></div>
+        </div>
+
+        <div class="controls">
+          <button id="mode-normal">Normal Mark</button>
+          <button id="mode-radial">Radial Clear (Charge)</button>
+          <button id="mode-laser">Laser Line (Charge)</button>
+          <button id="laser-axis">Laser Axis: Row</button>
+        </div>
+
+        <p id="info"></p>
+      </section>
+
+      <section class="board-wrap">
+        <div id="board" class="board" aria-label="game board"></div>
+      </section>
+    </main>
+
+    <div id="menu" class="menu">
+      <div class="menu-card">
+        <h2 id="menu-title">Grid Clash Prototype</h2>
+        <p id="menu-message">
+          Claim more board space than the enemy before the grid fills.
+        </p>
+        <div class="upgrade-block">
+          <h3>Upgrades</h3>
+          <button id="buy-laser">Unlock Laser Line (2 points)</button>
+          <button id="buy-double">Unlock Double Mark Turn (3 points)</button>
+        </div>
+        <button id="start-next">Start Match</button>
+      </div>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
