@@ -351,7 +351,7 @@ function onPlayerBoardClick(r, c) {
   renderBoard();
   renderHud();
   if (state.playerMarksLeftThisTurn > 0) {
-    setInfo(`Place ${state.playerMarksLeftThisTurn} more mark this turn.`);
+    setInfo(`Place ${state.playerMarksLeftThisTurn} more marks this turn.`);
     return;
   }
 
@@ -390,7 +390,7 @@ function initControls() {
   });
 
   el.laserAxis.addEventListener("click", () => {
-    state.laserAxis = state.laserAxis === "row" ? "col" : "row";
+    state.laserAxis = state.laserAxis === "row" ? "column" : "row";
     renderHud();
   });
 
