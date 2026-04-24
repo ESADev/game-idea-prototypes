@@ -1,0 +1,121 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #2e2549, #09070f 65%);
+  color: #f5f8ff;
+  min-height: 100vh;
+}
+
+#app {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.game-shell {
+  width: min(100%, 820px);
+  display: grid;
+  gap: 12px;
+}
+
+.hud,
+.controls {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 0.95rem;
+  background: rgba(24, 18, 39, 0.75);
+  border: 1px solid rgba(149, 173, 255, 0.28);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.arena-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+canvas {
+  width: min(100%, 520px);
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(150, 181, 255, 0.35);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.42);
+  background: #140f25;
+}
+
+.message {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(18, 15, 31, 0.9);
+  border: 1px solid rgba(150, 181, 255, 0.35);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  max-width: calc(100% - 16px);
+  text-align: center;
+}
+
+.shop {
+  background: rgba(24, 18, 39, 0.9);
+  border: 1px solid rgba(149, 173, 255, 0.28);
+  border-radius: 12px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.shop h2,
+.shop p {
+  margin: 0;
+}
+
+.shop-grid,
+.equip-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+button {
+  border: 1px solid rgba(149, 173, 255, 0.4);
+  border-radius: 10px;
+  background: #2a2150;
+  color: #f5f8ff;
+  padding: 8px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+#nextRound {
+  background: #3d2e72;
+}
+
+.hidden {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .shop-grid,
+  .equip-row {
+    grid-template-columns: 1fr;
+  }
+}
