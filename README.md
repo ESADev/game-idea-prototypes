@@ -16,7 +16,7 @@ npm run build
 ```
 
 To-Do:
-- Touch screen compatibility for the movement.
+- ~~Touch screen compatibility for the movement.~~ ✅ Done — on-screen hold buttons added
 - Shield feature that can be upgraded and each upgrade will add one more shield and a shield will be broken on an enemy hit but be rebuild after a cooldown
 - Make the entire UI turkish language
 - Emphasize total money more by making it larger and bold maybe
