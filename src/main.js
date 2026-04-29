@@ -352,7 +352,7 @@ function loop(now) {
     state.time += dt
     updatePaddle(dt)
 
-    const targetInterval = Math.max(0.028, 0.08 - state.time * 0.0014)
+    const targetInterval = Math.max(0.028, 0.4 - state.time * 0.0014)
     state.spawnTimer += dt
     while (state.spawnTimer >= targetInterval && state.enemies.length < 260) {
       spawnEnemy()
