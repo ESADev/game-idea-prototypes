@@ -17,6 +17,8 @@
 body {
   margin: 0;
   min-height: 100vh;
+  /* Prevent iOS rubber-band scrolling from interfering with game */
+  overscroll-behavior: none;
 }
 
 #app {
@@ -24,7 +26,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: 12px;
 }
 
 .layout {
@@ -33,21 +35,23 @@ body {
 
 h1 {
   margin: 0;
-  font-size: clamp(1.4rem, 2.4vw, 2rem);
+  font-size: clamp(1.2rem, 2.4vw, 2rem);
 }
 
 .subtitle,
 .controls {
-  margin: 8px 0 12px;
+  margin: 6px 0 8px;
   color: #94a3b8;
+  font-size: clamp(0.75rem, 1.8vw, 0.95rem);
 }
 
 .hud {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 8px;
   font-weight: 600;
+  font-size: clamp(0.8rem, 2vw, 1rem);
 }
 
 .canvas-wrap {
@@ -63,17 +67,56 @@ canvas {
   width: 100%;
   height: auto;
   background: #0f172a;
+  /* Disable native touch actions so our event handlers take over */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
+/* ── Touch controls ─────────────────────────────────────── */
+.touch-controls {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.touch-btn {
+  flex: 1;
+  min-height: 72px;
+  font-size: 2rem;
+  background: #1e3a5f;
+  color: #7dd3fc;
+  border: 2px solid #2563eb;
+  border-radius: 12px;
+  cursor: pointer;
+  /* Prevent long-press callout on iOS and text selection */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+
+.touch-btn:active {
+  background: #2563eb;
+  color: #fff;
+}
+
+/* ── Shop overlay ────────────────────────────────────────── */
 .shop {
   position: absolute;
   inset: 0;
-  background: rgba(2, 6, 23, 0.88);
+  background: rgba(2, 6, 23, 0.92);
   display: grid;
   place-content: center;
-  gap: 14px;
-  padding: 24px;
+  gap: 12px;
+  padding: 20px;
   text-align: center;
+  overflow-y: auto;
+}
+
+.shop h2 {
+  font-size: clamp(1rem, 3vw, 1.5rem);
+  margin: 0;
 }
 
 .hidden {
@@ -88,9 +131,11 @@ canvas {
 button {
   border: 0;
   border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 0.98rem;
+  padding: 12px 14px;
+  font-size: clamp(0.82rem, 2vw, 0.98rem);
   cursor: pointer;
+  /* Prevent double-tap zoom on shop buttons */
+  touch-action: manipulation;
 }
 
 .shop-btn {
@@ -107,3 +152,4 @@ button {
   background: #16a34a;
   color: white;
 }
+

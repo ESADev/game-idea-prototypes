@@ -5,8 +5,8 @@ const STORAGE_KEY = 'pong-vs-swarm-upgrades-v1'
 const app = document.querySelector('#app')
 app.innerHTML = `
   <div class="layout">
-    <h1>Pong Survivors Prototype</h1>
-    <p class="subtitle">Bounce balls into enemy swarms. Stop breaches. Buy permanent upgrades between runs.</p>
+    <h1>Pong Survivors</h1>
+    <p class="subtitle">Bounce balls into enemy swarms. Stop breaches. Buy upgrades between runs.</p>
 
     <div class="hud">
       <span id="money">Money: 0</span>
@@ -29,7 +29,12 @@ app.innerHTML = `
       </div>
     </div>
 
-    <p class="controls">Controls: A/D or ←/→ to move paddle.</p>
+    <div class="touch-controls" id="touch-controls" aria-label="Touch controls">
+      <button class="touch-btn" id="btn-left" aria-label="Move left">&#9664;</button>
+      <button class="touch-btn" id="btn-right" aria-label="Move right">&#9654;</button>
+    </div>
+
+    <p class="controls">Keyboard: A/D or &#8592;/&#8594; &nbsp;|&nbsp; Mobile: hold buttons above</p>
   </div>
 `
 
@@ -46,6 +51,9 @@ const buyWidthBtn = document.querySelector('#buy-width')
 const buyBallsBtn = document.querySelector('#buy-balls')
 const buyPierceBtn = document.querySelector('#buy-pierce')
 const nextRunBtn = document.querySelector('#next-run')
+
+const btnLeft = document.querySelector('#btn-left')
+const btnRight = document.querySelector('#btn-right')
 
 const world = {
   w: canvas.width,
@@ -369,6 +377,7 @@ function loop(now) {
   requestAnimationFrame(loop)
 }
 
+// Keyboard controls
 document.addEventListener('keydown', (event) => {
   if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') keys.left = true
   if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') keys.right = true
@@ -378,6 +387,39 @@ document.addEventListener('keyup', (event) => {
   if (event.key === 'ArrowLeft' || event.key.toLowerCase() === 'a') keys.left = false
   if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') keys.right = false
 })
+
+// Touch / mouse hold controls for on-screen buttons
+function setupHoldButton(btn, key) {
+  btn.addEventListener('touchstart', (e) => {
+    e.preventDefault()
+    keys[key] = true
+  }, { passive: false })
+  btn.addEventListener('touchend', (e) => {
+    e.preventDefault()
+    keys[key] = false
+  }, { passive: false })
+  btn.addEventListener('touchcancel', () => {
+    keys[key] = false
+  })
+  btn.addEventListener('mousedown', (e) => {
+    e.preventDefault()
+    keys[key] = true
+  })
+  btn.addEventListener('mouseup', () => {
+    keys[key] = false
+  })
+  btn.addEventListener('mouseleave', () => {
+    keys[key] = false
+  })
+}
+
+setupHoldButton(btnLeft, 'left')
+setupHoldButton(btnRight, 'right')
+
+// Prevent page scroll when interacting with the canvas area on touch devices
+document.querySelector('.canvas-wrap').addEventListener('touchmove', (e) => {
+  e.preventDefault()
+}, { passive: false })
 
 function buyUpgrade(type) {
   const cost = getCost(type)
