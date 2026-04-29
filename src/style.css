@@ -35,14 +35,7 @@ body {
 
 h1 {
   margin: 0;
-  font-size: clamp(1.2rem, 2.4vw, 2rem);
-}
-
-.subtitle,
-.controls {
-  margin: 6px 0 8px;
-  color: #94a3b8;
-  font-size: clamp(0.75rem, 1.8vw, 0.95rem);
+  font-size: clamp(2.4rem, 4.8vw, 4rem);
 }
 
 .hud {
@@ -51,7 +44,7 @@ h1 {
   gap: 10px;
   margin-bottom: 8px;
   font-weight: 600;
-  font-size: clamp(0.8rem, 2vw, 1rem);
+  font-size: clamp(1.6rem, 4vw, 2rem);
 }
 
 .canvas-wrap {
@@ -115,7 +108,7 @@ canvas {
 }
 
 .shop h2 {
-  font-size: clamp(1rem, 3vw, 1.5rem);
+  font-size: clamp(2rem, 6vw, 3rem);
   margin: 0;
 }
 
@@ -132,7 +125,7 @@ button {
   border: 0;
   border-radius: 8px;
   padding: 12px 14px;
-  font-size: clamp(0.82rem, 2vw, 0.98rem);
+  font-size: clamp(1.64rem, 4vw, 1.96rem);
   cursor: pointer;
   /* Prevent double-tap zoom on shop buttons */
   touch-action: manipulation;
@@ -150,6 +143,11 @@ button {
 
 .start-btn {
   background: #16a34a;
+  color: white;
+}
+
+.skip-btn {
+  background: #475569;
   color: white;
 }
 
