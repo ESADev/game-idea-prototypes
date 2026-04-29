@@ -4,11 +4,23 @@ const STORAGE_KEY = 'pong-vs-swarm-upgrades-v1'
 const CRYSTAL_THRESHOLD = 10
 const CRYSTAL_DROP_CHANCE = 0.4
 
+// ── Enemy spawn tuning ──────────────────────────────────────────────────────
+// ENEMY_SPAWN_INTERVAL_START : seconds between spawns at t=0 (higher = fewer enemies early)
+// ENEMY_SPAWN_RATE_RAMP      : how much the interval shrinks per second of play time
+const ENEMY_SPAWN_INTERVAL_START = 2.0
+const ENEMY_SPAWN_RATE_RAMP = 0.0014
+// ───────────────────────────────────────────────────────────────────────────
+
+const PADDLE_MAX_HP = 100
+const PADDLE_HP_PER_HIT = 10      // HP lost when an enemy reaches the paddle / bottom
+const PADDLE_HP_REGEN = 5         // HP regained per second when not recently hit
+const PADDLE_HP_REGEN_DELAY = 2.5 // seconds of no hits before regen starts
+
 const IN_RUN_UPGRADE_DEFS = [
   { key: 'speedBoost',   label: '🏃 Speed Boost', desc: 'Paddle 20% faster' },
   { key: 'ballSpeed',    label: '⚡ Ball Speed',   desc: 'Balls 15% faster' },
   { key: 'extraBallRun', label: '🎱 Extra Ball',   desc: '+1 ball this run' },
-  { key: 'shield',       label: '🛡 Shield',       desc: 'Absorb 3 breaches' },
+  { key: 'shield',       label: '🛡 Shield',       desc: 'Absorb 3 hits' },
   { key: 'magnet',       label: '🧲 Magnet',       desc: 'Crystals seek paddle' },
   { key: 'doubleGems',   label: '💎 Double Gems',  desc: '50% chance: 2 gem drops' },
 ]
@@ -21,7 +33,7 @@ app.innerHTML = `
       <span id="money">💰 0</span>
       <span id="crystals-hud">💎 0</span>
       <span id="run">Kills: 0</span>
-      <span id="breaches">⚠️ Breaches: 0 / 20</span>
+      <span id="hp-hud">❤️ HP: 100</span>
     </div>
     <div class="canvas-wrap">
       <canvas id="game" width="960" height="600" aria-label="Game area"></canvas>
@@ -54,7 +66,7 @@ const ctx = canvas.getContext('2d')
 const moneyEl = document.querySelector('#money')
 const crystalsHudEl = document.querySelector('#crystals-hud')
 const runEl = document.querySelector('#run')
-const breachesEl = document.querySelector('#breaches')
+const hpHudEl = document.querySelector('#hp-hud')
 
 const shopEl = document.querySelector('#shop')
 const shopSummaryEl = document.querySelector('#shop-summary')
@@ -73,7 +85,6 @@ const btnRight = document.querySelector('#btn-right')
 const world = {
   w: canvas.width,
   h: canvas.height,
-  breachLimit: 20,
 }
 
 const keys = { left: false, right: false }
@@ -83,7 +94,6 @@ const state = {
   paused: false,
   money: 0,
   runKills: 0,
-  breaches: 0,
   crystals: 0,
   spawnTimer: 0,
   time: 0,
@@ -106,9 +116,12 @@ const state = {
   paddle: {
     x: world.w / 2,
     y: world.h - 30,
+    vx: 0,
     width: 160,
     height: 16,
     speed: 700,
+    hp: PADDLE_MAX_HP,
+    lastHitTime: -999,
   },
 }
 
@@ -156,10 +169,9 @@ function getPaddleSpeedMult() {
 
 function resetRun() {
   state.runKills = 0
-  state.breaches = 0
+  state.crystals = 0
   state.spawnTimer = 0
   state.time = 0
-  state.crystals = 0
   state.enemies = []
   state.crystalPickups = []
   state.paused = false
@@ -176,6 +188,9 @@ function resetRun() {
 
   state.paddle.width = 160 + state.upgrades.width * 22
   state.paddle.x = world.w / 2
+  state.paddle.vx = 0
+  state.paddle.hp = PADDLE_MAX_HP
+  state.paddle.lastHitTime = -999
 
   const ballCount = 1 + state.upgrades.extraBalls
   state.balls = Array.from({ length: ballCount }, (_, i) => createBall(i, ballCount))
@@ -203,6 +218,24 @@ function endRun() {
   renderShopButtons()
 }
 
+function applyPaddleHit(dmg) {
+  if (state.inRunUpgrades.shield > 0) {
+    state.inRunUpgrades.shield -= 1
+  } else {
+    state.paddle.hp -= dmg
+    state.paddle.lastHitTime = state.time
+    if (state.paddle.hp <= 0) {
+      state.paddle.hp = 0
+    }
+  }
+}
+
+function updatePaddleHP(dt) {
+  if (state.time - state.paddle.lastHitTime >= PADDLE_HP_REGEN_DELAY) {
+    state.paddle.hp = Math.min(PADDLE_MAX_HP, state.paddle.hp + PADDLE_HP_REGEN * dt)
+  }
+}
+
 function spawnEnemy() {
   const sideRoll = Math.random()
   let x
@@ -219,8 +252,8 @@ function spawnEnemy() {
     y = Math.random() * world.h * 0.6
   }
 
-  const baseR = 21
-  const r = baseR + Math.floor((Math.random() - 0.5) * 6)
+  const baseRadius = 21
+  const r = baseRadius + Math.floor((Math.random() - 0.5) * 6)
   const hue = Math.round(355 + (Math.random() - 0.5) * 20)
   const sat = Math.round(70 + Math.random() * 20)
   const light = Math.round(45 + Math.random() * 10)
@@ -232,8 +265,12 @@ function spawnEnemy() {
 
 function updatePaddle(dt) {
   const dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0)
-  const speed = state.paddle.speed * getPaddleSpeedMult()
-  state.paddle.x += dir * speed * dt
+  const maxSpeed = state.paddle.speed * getPaddleSpeedMult()
+  const targetVx = dir * maxSpeed
+  // Accelerate toward target velocity; decelerate quickly when no input
+  const rate = dir !== 0 ? 14 : 20
+  state.paddle.vx += (targetVx - state.paddle.vx) * Math.min(1, rate * dt)
+  state.paddle.x += state.paddle.vx * dt
   const half = state.paddle.width / 2
   state.paddle.x = Math.max(half, Math.min(world.w - half, state.paddle.x))
 }
@@ -274,11 +311,7 @@ function updateBall(ball, dt) {
   }
 
   if (ball.y - ball.r > world.h) {
-    if (state.inRunUpgrades.shield > 0) {
-      state.inRunUpgrades.shield -= 1
-    } else {
-      state.breaches += 1
-    }
+    applyPaddleHit(5)
     ball.x = state.paddle.x
     ball.y = state.paddle.y - 24
     ball.vx = (Math.random() - 0.5) * 180
@@ -288,12 +321,9 @@ function updateBall(ball, dt) {
 }
 
 function handleEnemyMovement(dt) {
+  // Enemies move straight downward — no homing
   for (const e of state.enemies) {
-    const dx = state.paddle.x - e.x
-    const dy = state.paddle.y - e.y
-    const len = Math.hypot(dx, dy) || 1
-    e.x += (dx / len) * e.speed * dt
-    e.y += (dy / len) * e.speed * dt
+    e.y += e.speed * dt
   }
 
   for (let i = state.enemies.length - 1; i >= 0; i -= 1) {
@@ -308,11 +338,7 @@ function handleEnemyMovement(dt) {
 
     if (reachedBottom || hitPaddle) {
       state.enemies.splice(i, 1)
-      if (state.inRunUpgrades.shield > 0) {
-        state.inRunUpgrades.shield -= 1
-      } else {
-        state.breaches += 1
-      }
+      applyPaddleHit(PADDLE_HP_PER_HIT)
     }
   }
 }
@@ -444,9 +470,9 @@ function updateHUD() {
   moneyEl.textContent = `💰 ${state.money}`
   crystalsHudEl.textContent = `💎 ${state.crystals}`
   runEl.textContent = `Kills: ${state.runKills}`
-  const pct = state.breaches / world.breachLimit
-  breachesEl.textContent = `⚠️ Breaches: ${state.breaches} / ${world.breachLimit}`
-  breachesEl.style.color = pct >= 0.75 ? '#ef4444' : pct >= 0.5 ? '#f97316' : ''
+  const hpPct = state.paddle.hp / PADDLE_MAX_HP
+  hpHudEl.textContent = `❤️ HP: ${Math.ceil(state.paddle.hp)}`
+  hpHudEl.style.color = hpPct <= 0.25 ? '#ef4444' : hpPct <= 0.5 ? '#f97316' : ''
 }
 
 function renderShopButtons() {
@@ -496,6 +522,17 @@ function draw() {
   ctx.lineWidth = 2
   ctx.strokeRect(1, 1, world.w - 2, world.h - 2)
 
+  // Paddle HP bar (above paddle)
+  const barW = state.paddle.width
+  const barH = 8
+  const barX = state.paddle.x - barW / 2
+  const barY = state.paddle.y - state.paddle.height / 2 - barH - 4
+  const hpPct = state.paddle.hp / PADDLE_MAX_HP
+  ctx.fillStyle = '#1e293b'
+  ctx.fillRect(barX, barY, barW, barH)
+  ctx.fillStyle = hpPct > 0.5 ? '#22c55e' : hpPct > 0.25 ? '#f97316' : '#ef4444'
+  ctx.fillRect(barX, barY, barW * hpPct, barH)
+
   // Paddle (blue tint when shielded)
   ctx.fillStyle = state.inRunUpgrades.shield > 0 ? '#93c5fd' : '#f1f5f9'
   ctx.fillRect(
@@ -534,8 +571,8 @@ function draw() {
     ctx.fill()
   }
 
-  // Crystal pickups — diamond shape
-  ctx.fillStyle = '#a855f7'
+  // Crystal pickups — diamond shape, light bright blue
+  ctx.fillStyle = '#7dd3fc'
   for (const c of state.crystalPickups) {
     ctx.beginPath()
     ctx.moveTo(c.x, c.y - 9)
@@ -555,8 +592,9 @@ function loop(now) {
   if (state.running && !state.paused) {
     state.time += dt
     updatePaddle(dt)
+    updatePaddleHP(dt)
 
-    const targetInterval = Math.max(0.028, 0.4 - state.time * 0.0014)
+    const targetInterval = Math.max(0.028, ENEMY_SPAWN_INTERVAL_START - state.time * ENEMY_SPAWN_RATE_RAMP)
     state.spawnTimer += dt
     while (state.spawnTimer >= targetInterval && state.enemies.length < 260) {
       spawnEnemy()
@@ -572,7 +610,7 @@ function loop(now) {
     handleBallEnemyCollisions()
     updateCrystals(dt)
 
-    if (state.breaches >= world.breachLimit) {
+    if (state.paddle.hp <= 0) {
       endRun()
     }
   }
