@@ -17,7 +17,6 @@
 body {
   margin: 0;
   min-height: 100vh;
-  /* Prevent iOS rubber-band scrolling from interfering with game */
   overscroll-behavior: none;
 }
 
@@ -60,7 +59,6 @@ canvas {
   width: 100%;
   height: auto;
   background: #0f172a;
-  /* Disable native touch actions so our event handlers take over */
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -82,7 +80,6 @@ canvas {
   border: 2px solid #2563eb;
   border-radius: 12px;
   cursor: pointer;
-  /* Prevent long-press callout on iOS and text selection */
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -94,11 +91,11 @@ canvas {
   color: #fff;
 }
 
-/* ── Shop overlay ────────────────────────────────────────── */
+/* ── Full-screen shop overlay (between runs) ─────────────── */
 .shop {
   position: absolute;
   inset: 0;
-  background: rgba(2, 6, 23, 0.92);
+  background: rgba(2, 6, 23, 0.93);
   display: grid;
   place-content: center;
   gap: 12px;
@@ -112,13 +109,58 @@ canvas {
   margin: 0;
 }
 
+/* ── In-run upgrade panel (floating side card — game stays visible) ── */
+.upgrade-panel {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  width: min(300px, 36%);
+  background: rgba(8, 14, 35, 0.87);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 2px solid rgba(124, 58, 237, 0.7);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 14px;
+  text-align: center;
+  z-index: 10;
+  box-shadow: 0 0 28px rgba(124, 58, 237, 0.35);
+}
+
+.upgrade-panel h2 {
+  font-size: clamp(1.2rem, 3vw, 1.7rem);
+  margin: 0;
+  color: #c4b5fd;
+}
+
+.upgrade-choice-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.upg-label {
+  font-size: clamp(1.2rem, 2.8vw, 1.55rem);
+  font-weight: 700;
+}
+
+.upg-desc {
+  font-size: clamp(0.95rem, 2.2vw, 1.15rem);
+  opacity: 0.8;
+}
+
 .hidden {
   display: none;
 }
 
 .shop-actions {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 button {
@@ -127,8 +169,12 @@ button {
   padding: 12px 14px;
   font-size: clamp(1.64rem, 4vw, 1.96rem);
   cursor: pointer;
-  /* Prevent double-tap zoom on shop buttons */
   touch-action: manipulation;
+}
+
+/* Smaller font inside the upgrade panel buttons */
+.upgrade-panel button {
+  font-size: clamp(1.1rem, 2.6vw, 1.45rem);
 }
 
 .shop-btn {
@@ -149,5 +195,5 @@ button {
 .skip-btn {
   background: #475569;
   color: white;
+  font-size: clamp(1.1rem, 2.4vw, 1.35rem);
 }
-
