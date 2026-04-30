@@ -18,9 +18,9 @@ export const CFG = {
   CRYSTAL_SPEED_MAX:      220,   // fall speed px/s (max)
   CRYSTAL_SPREAD_X:       44,    // ± horizontal scatter around kill point (px)
   CRYSTAL_SPREAD_Y:       22,    // ± vertical   scatter around kill point (px)
-  CRYSTAL_MAGNET_PULL:    4,     // x-snap factor per second when magnet active
-  CRYSTAL_MAGNET_ACCEL:   180,   // vy acceleration px/s² with magnet
-  CRYSTAL_MAGNET_MAX_VY:  320,   // max fall speed px/s with magnet
+  CRYSTAL_MAGNET_PULL:    1.8,   // x-snap factor per second when magnet active (reduced — was 4)
+  CRYSTAL_MAGNET_ACCEL:   70,    // vy acceleration px/s² with magnet (reduced — was 180)
+  CRYSTAL_MAGNET_MAX_VY:  190,   // max fall speed px/s with magnet (reduced — was 320)
   CRYSTAL_PICKUP_RADIUS:  12,    // collection hitbox half-size (px)
 
   // ── Coin drops ─────────────────────────────────────────────────────────────
@@ -100,4 +100,10 @@ export const CFG = {
   // ── Ball indicator HUD (drawn on canvas, bottom-right) ────────────────────
   BALL_HUD_RADIUS: 9,   // px — radius of each ball icon
   BALL_HUD_GAP:    6,   // px — gap between icons
+
+  // ── Ball trajectory prediction (radar) ────────────────────────────────────
+  BALL_PREDICTION_BOUNCES:  2,     // number of surface bounces to trace ahead
+  BALL_PREDICTION_HZ:       15,    // refresh rate for recalculating paths (Hz)
+  BALL_PREDICTION_MAX_TIME: 6.0,   // safety cap on simulation time (seconds)
+  BALL_PREDICTION_ALPHA:    0.16,  // opacity of the prediction lines (0–1)
 }

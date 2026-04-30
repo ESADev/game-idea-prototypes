@@ -153,6 +153,8 @@ function resetRun() {
   state.explosions     = []
   state.balls          = []
   state.waitingBalls   = []
+  predictionLines      = []
+  lastPredictionTime   = -Infinity
   state.paused   = false
   state.running  = true
 
@@ -318,6 +320,15 @@ function handleEnemyMovement(dt) {
   for (let i = state.enemies.length - 1; i >= 0; i--) {
     const e = state.enemies[i]
 
+    // ── Silently cull enemies that are fully off-screen horizontally ────────
+    // Side-spawned enemies have no horizontal velocity so they never enter the
+    // canvas. Without this they drift down invisibly and silently damage the
+    // castle when they cross the breach line — the "unexpected HP loss" bug.
+    if (e.x + e.r <= 0 || e.x - e.r >= world.w) {
+      state.enemies.splice(i, 1)
+      continue
+    }
+
     // ── Direct paddle hit → paddle damage ──────────────────────────────────
     if (!e.breaching) {
       const hitPaddle =
@@ -470,7 +481,9 @@ function showUpgradeMenu() {
   upgradeMenuEl.classList.remove('hidden')
   upgradeChoicesEl.innerHTML = ''
 
-  const choices = [...IN_RUN_UPGRADE_DEFS].sort(() => Math.random() - 0.5).slice(0, 3)
+  // Magnet can only be acquired once per run
+  const pool    = IN_RUN_UPGRADE_DEFS.filter(u => !(u.key === 'magnet' && state.inRunUpgrades.magnet > 0))
+  const choices = [...pool].sort(() => Math.random() - 0.5).slice(0, 3)
   for (const upg of choices) {
     const btn = document.createElement('button')
     btn.className = 'shop-btn upgrade-choice-btn'
@@ -766,6 +779,9 @@ function draw() {
   ctx.setLineDash([])
   ctx.strokeRect(1, 1, world.w - 2, world.h - 2)
 
+  // Ball trajectory predictions (faint dashed lines — drawn behind everything)
+  drawBallPredictions()
+
   // Paddle HP bar
   const barW  = state.paddle.width
   const barX  = state.paddle.x - barW / 2
@@ -886,6 +902,135 @@ function draw() {
   drawCrystalBar()
 }
 
+// ── Ball trajectory prediction (radar) ───────────────────────────────────────
+let predictionLines    = []   // one entry per active ball: array of {x,y} waypoints
+let lastPredictionTime = -Infinity
+
+/**
+ * Analytically traces a single ball's path forward through bounces.
+ * Returns [{x,y}, …] waypoints: start → bounce points → terminal point.
+ * Uses event-driven simulation (jump to next surface hit), so it is exact
+ * regardless of speed and never misses collisions between steps.
+ */
+function simulateBallPath(ball) {
+  const pts = [{ x: ball.x, y: ball.y }]
+  let x = ball.x, y = ball.y
+  let vx = ball.vx, vy = ball.vy
+  const r = ball.r
+  const p = state.paddle
+
+  let bounces   = 0
+  let totalTime = 0
+  const maxB = CFG.BALL_PREDICTION_BOUNCES
+  const maxT = CFG.BALL_PREDICTION_MAX_TIME
+
+  while (bounces < maxB && totalTime < maxT) {
+    // ── Time to each surface in the current travel direction ──────────────
+    const tLeft   = vx < 0 ? (r - x) / vx           : Infinity
+    const tRight  = vx > 0 ? (world.w - r - x) / vx : Infinity
+    const tTop    = vy < 0 ? (r - y) / vy            : Infinity
+    // Stop prediction when ball centre crosses breach line
+    const tBreach = vy > 0 ? (BREACH_Y - y) / vy    : Infinity
+
+    // Time to paddle top surface (ball bottom touches paddle top edge)
+    let tPaddle = Infinity
+    if (vy > 0) {
+      const targetY = p.y - p.height / 2 - r
+      if (targetY > y) {
+        const t  = (targetY - y) / vy
+        const fx = x + vx * t
+        if (t > 1e-6 && fx >= p.x - p.width / 2 && fx <= p.x + p.width / 2) {
+          tPaddle = t
+        }
+      }
+    }
+
+    // ── Pick earliest event ───────────────────────────────────────────────
+    const events = [
+      { t: tLeft,   id: 0 },
+      { t: tRight,  id: 1 },
+      { t: tTop,    id: 2 },
+      { t: tBreach, id: 3 },
+      { t: tPaddle, id: 4 },
+    ]
+    let minEv = events[0]
+    for (let k = 1; k < events.length; k++) {
+      if (events[k].t < minEv.t) minEv = events[k]
+    }
+
+    if (!isFinite(minEv.t) || minEv.t <= 1e-9) break
+
+    totalTime += minEv.t
+    if (totalTime > maxT) break
+
+    x += vx * minEv.t
+    y += vy * minEv.t
+
+    // ── Handle the event ─────────────────────────────────────────────────
+    if (minEv.id === 3) {           // breach line — end of useful prediction
+      pts.push({ x, y })
+      break
+    }
+
+    bounces++
+    pts.push({ x, y })
+
+    if (minEv.id === 0) { x = r;           vx = -vx }
+    else if (minEv.id === 1) { x = world.w - r; vx = -vx }
+    else if (minEv.id === 2) { y = r;            vy = -vy }
+    else if (minEv.id === 4) {                    // paddle bounce
+      y = p.y - p.height / 2 - r
+      const rel   = Math.max(-1, Math.min(1, (x - p.x) / (p.width / 2)))
+      const speed = Math.hypot(vx, vy)
+      vx = rel * speed * CFG.BALL_REFLECT_CURVE
+      vy = -Math.abs(speed * (CFG.BALL_REFLECT_VY_CENTER + CFG.BALL_REFLECT_VY_EDGE_BONUS * (1 - Math.abs(rel))))
+    }
+  }
+
+  // ── Extend with a terminal segment so the line has a visible endpoint ────
+  const extT = Math.min(2.5, maxT - totalTime)
+  if (extT > 0.05 && isFinite(vx) && isFinite(vy)) {
+    pts.push({
+      x: Math.max(r, Math.min(world.w - r, x + vx * extT)),
+      y: Math.min(BREACH_Y, Math.max(r, y + vy * extT)),
+    })
+  }
+
+  return pts
+}
+
+function drawBallPredictions() {
+  if (!predictionLines.length) return
+  ctx.save()
+
+  for (const path of predictionLines) {
+    if (!path || path.length < 2) continue
+
+    // ── Dashed prediction line ────────────────────────────────────────────
+    ctx.globalAlpha = CFG.BALL_PREDICTION_ALPHA
+    ctx.strokeStyle = '#22d3ee'
+    ctx.lineWidth   = 1.5
+    ctx.setLineDash([5, 7])
+    ctx.lineCap     = 'round'
+    ctx.beginPath()
+    ctx.moveTo(path[0].x, path[0].y)
+    for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y)
+    ctx.stroke()
+
+    // ── Small dot at each intermediate bounce point ───────────────────────
+    ctx.setLineDash([])
+    ctx.globalAlpha = CFG.BALL_PREDICTION_ALPHA * 2.2
+    ctx.fillStyle   = '#22d3ee'
+    for (let i = 1; i < path.length - 1; i++) {
+      ctx.beginPath()
+      ctx.arc(path[i].x, path[i].y, 2.5, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
+  ctx.restore()
+}
+
 // ── Game loop ─────────────────────────────────────────────────────────────────
 let last = performance.now()
 function loop(now) {
@@ -924,6 +1069,12 @@ function loop(now) {
     updateCrystals(dt)
     updateCoins(dt)
     updateExplosions(dt)
+
+    // ── Ball trajectory predictions at CFG.BALL_PREDICTION_HZ ─────────────
+    if (now - lastPredictionTime >= 1000 / CFG.BALL_PREDICTION_HZ) {
+      lastPredictionTime = now
+      predictionLines = state.balls.map(simulateBallPath)
+    }
 
     // End condition: either health bar reaches 0
     if (state.paddle.hp <= 0 || state.castle.hp <= 0) endRun()
