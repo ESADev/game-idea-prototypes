@@ -375,9 +375,9 @@ function handleBallEnemyCollisions() {
       state.runKills += 1
       state.money    += 1
 
-      // Crystal drop
-      if (Math.random() < CFG.CRYSTAL_DROP_CHANCE) {
-        const base  = crystalDropCount()
+      // Crystal drop — always at least 1, up to 3 (triangular dist peaked at 2)
+      {
+        const base  = crystalDropCount()  // guaranteed 1-3
         const count = (state.inRunUpgrades.doubleGems > 0 && Math.random() < CFG.DOUBLE_GEMS_CHANCE)
                       ? base + 1 : base
         for (let c = 0; c < count; c++) {
@@ -612,6 +612,64 @@ function drawCastle() {
   ctx.textAlign = 'left'
 }
 
+// Crystal progress bar — top of canvas, fills as crystals accumulate toward threshold
+function drawCrystalBar() {
+  const fill   = Math.min(1, state.crystals / CFG.CRYSTAL_THRESHOLD)
+  const barH   = 14
+  const barY   = 3
+  const margin = 4
+  const barX   = margin
+  const barW   = world.w - margin * 2
+
+  // Track background
+  ctx.fillStyle = '#0a1628'
+  ctx.fillRect(barX, barY, barW, barH)
+
+  // Filled portion
+  if (fill > 0) {
+    const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0)
+    grad.addColorStop(0, '#0369a1')
+    grad.addColorStop(0.6, '#0ea5e9')
+    grad.addColorStop(1, '#22d3ee')
+    ctx.fillStyle = grad
+    // Pulsing glow when almost full
+    if (fill >= 0.8) {
+      ctx.save()
+      ctx.shadowBlur  = 8 + 5 * Math.sin(state.time * 10)
+      ctx.shadowColor = '#22d3ee'
+      ctx.fillRect(barX, barY, barW * fill, barH)
+      ctx.restore()
+    } else {
+      ctx.fillRect(barX, barY, barW * fill, barH)
+    }
+  }
+
+  // Border
+  ctx.strokeStyle = '#1e3a5f'
+  ctx.lineWidth   = 1
+  ctx.strokeRect(barX, barY, barW, barH)
+
+  // Segment tick marks
+  ctx.strokeStyle = '#0f172a'
+  ctx.lineWidth   = 1
+  for (let i = 1; i < CFG.CRYSTAL_THRESHOLD; i++) {
+    const tx = barX + (barW / CFG.CRYSTAL_THRESHOLD) * i
+    ctx.beginPath()
+    ctx.moveTo(tx, barY)
+    ctx.lineTo(tx, barY + barH)
+    ctx.stroke()
+  }
+
+  // Label
+  ctx.fillStyle     = fill >= 0.8 ? '#ffffff' : '#94a3b8'
+  ctx.font          = `bold ${barH - 4}px Inter, system-ui, sans-serif`
+  ctx.textAlign     = 'center'
+  ctx.textBaseline  = 'middle'
+  ctx.fillText(`💎 ${state.crystals} / ${CFG.CRYSTAL_THRESHOLD}  —  YÜKSELTME`, world.w / 2, barY + barH / 2)
+  ctx.textBaseline  = 'alphabetic'
+  ctx.textAlign     = 'left'
+}
+
 // Ball indicator: bottom-right corner, above the breach line
 function drawBallIndicator() {
   const total = state.balls.length + state.waitingBalls.length
@@ -823,6 +881,9 @@ function draw() {
 
   // Ball indicator (bottom-right of playfield)
   drawBallIndicator()
+
+  // Crystal progress bar (top of canvas, always on top)
+  drawCrystalBar()
 }
 
 // ── Game loop ─────────────────────────────────────────────────────────────────

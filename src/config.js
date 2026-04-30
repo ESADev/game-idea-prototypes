@@ -10,8 +10,8 @@ export const CFG = {
   STORAGE_KEY: 'pong-vs-swarm-upgrades-v2',
 
   // ── Crystal drops ──────────────────────────────────────────────────────────
-  CRYSTAL_THRESHOLD:      10,    // crystals needed to open the upgrade menu
-  CRYSTAL_DROP_CHANCE:    0.4,   // probability crystals drop per kill
+  CRYSTAL_THRESHOLD:      6,     // crystals needed to open the upgrade menu
+  CRYSTAL_DROP_CHANCE:    1.0,   // 1.0 = guaranteed drop every kill (no zero-crystal kills)
   CRYSTAL_VALUE_MIN:      1,     // minimum crystals per drop (triangular dist)
   CRYSTAL_VALUE_MAX:      3,     // maximum crystals per drop
   CRYSTAL_SPEED_MIN:      160,   // fall speed px/s (min)
@@ -33,9 +33,9 @@ export const CFG = {
   COIN_PICKUP_RADIUS: 10,    // collection hitbox half-size (px)
 
   // ── Ball ───────────────────────────────────────────────────────────────────
-  BALL_BASE_SPEED:            640,  // px/s  (2× the original 320)
+  BALL_BASE_SPEED:            480,  // px/s  (0.75× of previous 640)
   BALL_RADIUS:                7,    // px
-  BALL_RELAUNCH_DELAY:        3.0,  // seconds to wait before a missed ball relaunches
+  BALL_RELAUNCH_DELAY:        1.0,  // seconds to wait before a missed ball relaunches
   BALL_MISS_VX_SPREAD:        180,  // ± vx spread on relaunch (actual = random*spread - spread/2)
   BALL_SPEED_BOOST_REFLECT:   1.02, // speed multiplier each time ball hits paddle
   BALL_REFLECT_CURVE:         0.95, // how strongly angle bends at paddle edges
