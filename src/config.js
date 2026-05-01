@@ -10,7 +10,8 @@ export const CFG = {
   STORAGE_KEY: 'turret-survivors-upgrades-v1',
 
   // ── Crystal drops ──────────────────────────────────────────────────────────
-  CRYSTAL_THRESHOLD:      6,     // crystals needed to open the upgrade menu
+  CRYSTAL_BASE_COST:      5,     // crystals needed for the very first in-run upgrade
+  CRYSTAL_COST_MULT:      1.55,  // each upgrade makes the next one cost ×this much
   CRYSTAL_DROP_CHANCE:    1.0,   // 1.0 = guaranteed drop every kill
   CRYSTAL_VALUE_MIN:      1,     // minimum crystals per drop (triangular dist)
   CRYSTAL_VALUE_MAX:      3,     // maximum crystals per drop
@@ -31,6 +32,9 @@ export const CFG = {
   COIN_VALUE:         2,     // bonus money awarded on pickup
   COIN_RADIUS:        9,     // visual + hitbox radius (px)
   COIN_PICKUP_RADIUS: 10,    // collection hitbox half-size (px)
+
+  // ── Bullet spread (multi-barrel) ───────────────────────────────────────────
+  BULLET_SPREAD_PX:       18,    // px gap between adjacent bullets in a volley
 
   // ── Turret ─────────────────────────────────────────────────────────────────
   TURRET_BASE_SPEED:        700,   // px/s horizontal movement
@@ -96,6 +100,7 @@ export const CFG = {
   COST_BASE_FIRE_RATE:      8,
   COST_BASE_BULLET_DMG:     10,
   COST_BASE_PIERCE:         15,
+  COST_BASE_BULLET_COUNT:   12,  // perma bullet-count upgrade base cost
 
   // ── In-run upgrade stacking ────────────────────────────────────────────────
   SHIELD_STACKS_PER_PICK:   3,    // shield charges added per shield pickup

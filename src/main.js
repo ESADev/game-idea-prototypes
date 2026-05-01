@@ -40,6 +40,11 @@ const IN_RUN_UPGRADE_DEFS = [
     label: '💎 Çift Taş',
     desc: () => `Mevcut: ${state.inRunUpgrades.doubleGems} → %50 ile +1 taş`,
   },
+  {
+    key: 'bulletCount',
+    label: '🔫 Ekstra Mermi',
+    desc: () => `Mevcut: ${getTotalBullets()} mermi → +2 mermi (sağ+sol)`,
+  },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,16 +66,17 @@ app.innerHTML = `
         <h2>⚙️ Kalıcı Yükseltmeler</h2>
         <p id="shop-summary"></p>
         <div class="shop-actions">
-          <button id="buy-fire-rate"  class="shop-btn"></button>
-          <button id="buy-bullet-dmg" class="shop-btn"></button>
-          <button id="buy-pierce"     class="shop-btn"></button>
+          <button id="buy-fire-rate"    class="shop-btn"></button>
+          <button id="buy-bullet-dmg"   class="shop-btn"></button>
+          <button id="buy-pierce"       class="shop-btn"></button>
+          <button id="buy-bullet-count" class="shop-btn"></button>
         </div>
         <button id="shop-back" class="start-btn">← Geri Dön</button>
       </div>
 
       <!-- In-run upgrade choice panel -->
       <div id="upgrade-menu" class="upgrade-panel hidden" role="dialog" aria-modal="true">
-        <h2>Yükseltme Seç — 💎 ${CFG.CRYSTAL_THRESHOLD}</h2>
+        <h2 id="upgrade-menu-h2">Yükseltme Seç</h2>
         <div class="shop-actions" id="upgrade-choices"></div>
         <button id="upgrade-skip" class="skip-btn">Geç</button>
       </div>
@@ -89,13 +95,15 @@ const crystalsHudEl   = document.querySelector('#crystals-hud')
 const castleHpHudEl   = document.querySelector('#castle-hp-hud')
 const shopEl          = document.querySelector('#shop')
 const shopSummaryEl   = document.querySelector('#shop-summary')
-const buyFireRateBtn  = document.querySelector('#buy-fire-rate')
-const buyBulletDmgBtn = document.querySelector('#buy-bullet-dmg')
-const buyPierceBtn    = document.querySelector('#buy-pierce')
-const shopBackBtn     = document.querySelector('#shop-back')
-const upgradeMenuEl   = document.querySelector('#upgrade-menu')
-const upgradeChoicesEl= document.querySelector('#upgrade-choices')
-const upgradeSkipBtn  = document.querySelector('#upgrade-skip')
+const buyFireRateBtn    = document.querySelector('#buy-fire-rate')
+const buyBulletDmgBtn   = document.querySelector('#buy-bullet-dmg')
+const buyPierceBtn      = document.querySelector('#buy-pierce')
+const buyBulletCountBtn = document.querySelector('#buy-bullet-count')
+const shopBackBtn       = document.querySelector('#shop-back')
+const upgradeMenuEl     = document.querySelector('#upgrade-menu')
+const upgradeMenuH2El   = document.querySelector('#upgrade-menu-h2')
+const upgradeChoicesEl  = document.querySelector('#upgrade-choices')
+const upgradeSkipBtn    = document.querySelector('#upgrade-skip')
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  World + layout  (derived from canvas intrinsic size)
@@ -129,8 +137,9 @@ const state = {
   time: 0,
   countdownTimer: 0,
 
-  upgrades:      { fireRate: 0, bulletDmg: 0, pierce: 0 },
-  inRunUpgrades: { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0 },
+  upgrades:          { fireRate: 0, bulletDmg: 0, pierce: 0, bulletCount: 0 },
+  inRunUpgrades:     { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0 },
+  inRunUpgradesCount: 0,  // total in-run upgrades taken this run (drives crystal cost curve)
 
   bullets:        [],
   enemies:        [],
@@ -165,11 +174,22 @@ function getBulletDmg() {
 function getPierceLevel() {
   return CFG.BULLET_PIERCE_BASE + state.upgrades.pierce + state.inRunUpgrades.pierce
 }
+function getTotalBullets() {
+  return 1
+    + 2 * state.upgrades.bulletCount
+    + 2 * state.inRunUpgrades.bulletCount
+}
+// Crystal cost for the next in-run upgrade (exponential like Vampire Survivors)
+// n=0→5, n=1→8, n=2→12, n=3→18, n=4→28, n=5→44 … (×1.55 each step)
+function getNextUpgradeCost() {
+  return Math.round(CFG.CRYSTAL_BASE_COST * Math.pow(CFG.CRYSTAL_COST_MULT, state.inRunUpgradesCount))
+}
 function getCost(type) {
   const bases = {
-    fireRate:  CFG.COST_BASE_FIRE_RATE,
-    bulletDmg: CFG.COST_BASE_BULLET_DMG,
-    pierce:    CFG.COST_BASE_PIERCE,
+    fireRate:    CFG.COST_BASE_FIRE_RATE,
+    bulletDmg:   CFG.COST_BASE_BULLET_DMG,
+    pierce:      CFG.COST_BASE_PIERCE,
+    bulletCount: CFG.COST_BASE_BULLET_COUNT,
   }
   return Math.floor(bases[type] * Math.pow(CFG.COST_SCALE_FACTOR, state.upgrades[type]))
 }
@@ -191,9 +211,10 @@ function loadUpgrades() {
     if (!raw) return
     const parsed = JSON.parse(raw)
     if (parsed?.upgrades) {
-      state.upgrades.fireRate  = Number(parsed.upgrades.fireRate)  || 0
-      state.upgrades.bulletDmg = Number(parsed.upgrades.bulletDmg) || 0
-      state.upgrades.pierce    = Number(parsed.upgrades.pierce)    || 0
+      state.upgrades.fireRate    = Number(parsed.upgrades.fireRate)    || 0
+      state.upgrades.bulletDmg   = Number(parsed.upgrades.bulletDmg)   || 0
+      state.upgrades.pierce      = Number(parsed.upgrades.pierce)      || 0
+      state.upgrades.bulletCount = Number(parsed.upgrades.bulletCount) || 0
     }
     state.money = Number(parsed?.money) || 0
   } catch { /* ignore broken saves */ }
@@ -251,7 +272,8 @@ function resetRun() {
   state.coinPickups    = []
   state.explosions     = []
 
-  state.inRunUpgrades = { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0 }
+  state.inRunUpgrades     = { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0 }
+  state.inRunUpgradesCount = 0
 
   state.turret.x           = world.w / 2
   state.turret.vx          = 0
@@ -316,15 +338,23 @@ function updateTurret(dt) {
   state.turret.x = Math.max(half, Math.min(world.w - half, state.turret.x))
 }
 
-function fireBullet() {
-  state.bullets.push({
-    x:          state.turret.x,
-    y:          state.turret.y - CFG.TURRET_HEIGHT / 2 - CFG.TURRET_BARREL_H,
-    vy:         -CFG.BULLET_SPEED,
-    dmg:        getBulletDmg(),
-    pierceLeft: getPierceLevel(),
-    r:          CFG.BULLET_RADIUS,
-  })
+function fireBullets() {
+  const count    = getTotalBullets()
+  const halfSpan = (count - 1) / 2      // e.g. count=3 → halfSpan=1
+  const fireY    = state.turret.y - CFG.TURRET_HEIGHT / 2 - CFG.TURRET_BARREL_H
+  const dmg      = getBulletDmg()
+  const pierce   = getPierceLevel()
+  for (let i = 0; i < count; i++) {
+    const offsetX = (i - halfSpan) * CFG.BULLET_SPREAD_PX
+    state.bullets.push({
+      x:          state.turret.x + offsetX,
+      y:          fireY,
+      vy:         -CFG.BULLET_SPEED,
+      dmg,
+      pierceLeft: pierce,
+      r:          CFG.BULLET_RADIUS,
+    })
+  }
 }
 
 function updateBullets(dt) {
@@ -490,7 +520,7 @@ function updateCrystals(dt) {
         c.x >= tx - tw - pr && c.x <= tx + tw + pr) {
       state.crystalPickups.splice(i, 1)
       state.crystals += 1
-      if (state.crystals >= CFG.CRYSTAL_THRESHOLD && state.screen === SCREEN.PLAYING && !upgradePaused) {
+      if (state.crystals >= getNextUpgradeCost() && state.screen === SCREEN.PLAYING && !upgradePaused) {
         showUpgradeMenu()
       }
       continue
@@ -522,9 +552,12 @@ function updateCoins(dt) {
 // ─────────────────────────────────────────────────────────────────────────────
 //  In-run upgrade menu
 // ─────────────────────────────────────────────────────────────────────────────
-let upgradePaused = false
+let upgradePaused     = false
+let currentUpgradeCost = 0  // cost at the moment the menu was opened
 
 function showUpgradeMenu() {
+  currentUpgradeCost = getNextUpgradeCost()
+  upgradeMenuH2El.textContent = `Yükseltme Seç — 💎 ${currentUpgradeCost}`
   upgradePaused = true
   upgradeMenuEl.classList.remove('hidden')
   upgradeChoicesEl.innerHTML = ''
@@ -538,7 +571,8 @@ function showUpgradeMenu() {
     btn.innerHTML = `<span class="upg-label">${upg.label}</span><span class="upg-desc">${upg.desc()}</span>`
     btn.addEventListener('click', () => {
       applyInRunUpgrade(upg.key)
-      state.crystals -= CFG.CRYSTAL_THRESHOLD
+      state.crystals           = Math.max(0, state.crystals - currentUpgradeCost)
+      state.inRunUpgradesCount += 1
       upgradeMenuEl.classList.add('hidden')
       upgradePaused = false
     })
@@ -552,6 +586,9 @@ function applyInRunUpgrade(key) {
 }
 
 upgradeSkipBtn.addEventListener('click', () => {
+  // Skipping still counts as an upgrade attempt — cost is paid, curve advances
+  state.crystals           = Math.max(0, state.crystals - currentUpgradeCost)
+  state.inRunUpgradesCount += 1
   upgradeMenuEl.classList.add('hidden')
   upgradePaused = false
 })
@@ -576,12 +613,15 @@ function renderShopButtons() {
   const fc = getCost('fireRate')
   const dc = getCost('bulletDmg')
   const pc = getCost('pierce')
-  buyFireRateBtn.innerHTML  = mkShopBtnHTML('🔥', 'Atış Hızı',    state.upgrades.fireRate,  `+${CFG.BULLET_FIRE_RATE_PER_LVL} atış/sn`, fc)
-  buyBulletDmgBtn.innerHTML = mkShopBtnHTML('💥', 'Mermi Hasarı', state.upgrades.bulletDmg, `+${CFG.BULLET_DAMAGE_PER_LVL} hasar`,      dc)
-  buyPierceBtn.innerHTML    = mkShopBtnHTML('🎯', 'Delici Mermi', state.upgrades.pierce,    '+1 geçiş',                                   pc)
-  buyFireRateBtn.disabled  = state.money < fc
-  buyBulletDmgBtn.disabled = state.money < dc
-  buyPierceBtn.disabled    = state.money < pc
+  const bc = getCost('bulletCount')
+  buyFireRateBtn.innerHTML    = mkShopBtnHTML('🔥', 'Atış Hızı',    state.upgrades.fireRate,    `+${CFG.BULLET_FIRE_RATE_PER_LVL} atış/sn`, fc)
+  buyBulletDmgBtn.innerHTML   = mkShopBtnHTML('💥', 'Mermi Hasarı', state.upgrades.bulletDmg,   `+${CFG.BULLET_DAMAGE_PER_LVL} hasar`,      dc)
+  buyPierceBtn.innerHTML      = mkShopBtnHTML('🎯', 'Delici Mermi', state.upgrades.pierce,      '+1 geçiş',                                   pc)
+  buyBulletCountBtn.innerHTML = mkShopBtnHTML('🔫', 'Mermi Sayısı', state.upgrades.bulletCount, '+2 mermi (sağ+sol)',                         bc)
+  buyFireRateBtn.disabled    = state.money < fc
+  buyBulletDmgBtn.disabled   = state.money < dc
+  buyPierceBtn.disabled      = state.money < pc
+  buyBulletCountBtn.disabled = state.money < bc
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -656,7 +696,8 @@ function drawCastle() {
 }
 
 function drawCrystalBar() {
-  const fill   = Math.min(1, state.crystals / CFG.CRYSTAL_THRESHOLD)
+  const cost   = getNextUpgradeCost()
+  const fill   = Math.min(1, state.crystals / cost)
   const barH   = 14, barY = 3, margin = 4
   const barX   = margin, barW = world.w - margin * 2
 
@@ -684,17 +725,20 @@ function drawCrystalBar() {
   ctx.lineWidth   = 1
   ctx.strokeRect(barX, barY, barW, barH)
 
-  ctx.strokeStyle = '#0f172a'
-  for (let i = 1; i < CFG.CRYSTAL_THRESHOLD; i++) {
-    const tx2 = barX + (barW / CFG.CRYSTAL_THRESHOLD) * i
-    ctx.beginPath(); ctx.moveTo(tx2, barY); ctx.lineTo(tx2, barY + barH); ctx.stroke()
+  // Tick marks only when cost is small enough to be readable
+  if (cost <= 15) {
+    ctx.strokeStyle = '#0f172a'
+    for (let i = 1; i < cost; i++) {
+      const tx2 = barX + (barW / cost) * i
+      ctx.beginPath(); ctx.moveTo(tx2, barY); ctx.lineTo(tx2, barY + barH); ctx.stroke()
+    }
   }
 
   ctx.fillStyle    = fill >= 0.8 ? '#ffffff' : '#94a3b8'
   ctx.font         = `bold ${barH - 4}px Inter, system-ui, sans-serif`
   ctx.textAlign    = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(`💎 ${state.crystals} / ${CFG.CRYSTAL_THRESHOLD}  —  YÜKSELTME`, world.w / 2, barY + barH / 2)
+  ctx.fillText(`💎 ${state.crystals} / ${cost}  —  YÜKSELTME`, world.w / 2, barY + barH / 2)
   ctx.textBaseline = 'alphabetic'
   ctx.textAlign    = 'left'
 }
@@ -858,7 +902,7 @@ function drawMenuScreen() {
   ctx.fillStyle = '#64748b'
   ctx.font      = '16px Inter, system-ui, sans-serif'
   ctx.fillText(
-    `💰 Altın: ${state.money}   🎯 Delici: Sv.${state.upgrades.pierce}`,
+    `💰 Altın: ${state.money}   🔫 Mermi: Sv.${state.upgrades.bulletCount}   🎯 Delici: Sv.${state.upgrades.pierce}`,
     world.w / 2, Math.round(world.h * 0.39))
   ctx.fillText(
     `🔥 Atış: Sv.${state.upgrades.fireRate}   💥 Hasar: Sv.${state.upgrades.bulletDmg}`,
@@ -1080,10 +1124,10 @@ function loop(now) {
     updateTurret(dt)
     updateTurretHP(dt)
 
-    // Auto-fire
+    // Auto-fire (multi-barrel)
     state.fireTimer -= dt
     if (state.fireTimer <= 0) {
-      fireBullet()
+      fireBullets()
       state.fireTimer = 1 / getFireRate()
     }
 
@@ -1195,9 +1239,10 @@ function buyUpgrade(type) {
   renderShopButtons()
   shopSummaryEl.textContent = `💰 Toplam Altın: ${state.money}`
 }
-buyFireRateBtn.addEventListener('click',  () => buyUpgrade('fireRate'))
-buyBulletDmgBtn.addEventListener('click', () => buyUpgrade('bulletDmg'))
-buyPierceBtn.addEventListener('click',    () => buyUpgrade('pierce'))
+buyFireRateBtn.addEventListener('click',    () => buyUpgrade('fireRate'))
+buyBulletDmgBtn.addEventListener('click',   () => buyUpgrade('bulletDmg'))
+buyPierceBtn.addEventListener('click',      () => buyUpgrade('pierce'))
+buyBulletCountBtn.addEventListener('click', () => buyUpgrade('bulletCount'))
 
 shopBackBtn.addEventListener('click', () => {
   shopEl.classList.add('hidden')
