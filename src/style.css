@@ -29,7 +29,7 @@ body {
 }
 
 .layout {
-  width: min(1024px, 100%);
+  width: min(540px, 100%);
 }
 
 .hud {
@@ -57,7 +57,7 @@ canvas {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  cursor: none;  /* hide cursor on canvas; turret tracks mouse */
+  cursor: crosshair;
 }
 
 /* ── Touch controls ─────────────────────────────────────── */

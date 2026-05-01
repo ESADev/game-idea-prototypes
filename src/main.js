@@ -38,12 +38,12 @@ const IN_RUN_UPGRADE_DEFS = [
   {
     key: 'doubleGems',
     label: '💎 Çift Taş',
-    desc: () => `Mevcut: ${state.inRunUpgrades.doubleGems} → %50 ihtimalle +1 taş düşer`,
+    desc: () => `Mevcut: ${state.inRunUpgrades.doubleGems} → %50 ile +1 taş`,
   },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  HTML scaffold
+//  HTML scaffold  — portrait canvas 540 × 960  (9:16)
 // ─────────────────────────────────────────────────────────────────────────────
 const app = document.querySelector('#app')
 app.innerHTML = `
@@ -54,7 +54,7 @@ app.innerHTML = `
       <span id="castle-hp-hud">🏰 Kale: 300</span>
     </div>
     <div class="canvas-wrap">
-      <canvas id="game" width="960" height="600" aria-label="Oyun alanı"></canvas>
+      <canvas id="game" width="540" height="960" aria-label="Oyun alanı"></canvas>
 
       <!-- Permanent inter-run shop (shown from main menu) -->
       <div id="shop" class="shop hidden" role="dialog" aria-modal="true">
@@ -104,18 +104,24 @@ const btnLeft         = document.querySelector('#btn-left')
 const btnRight        = document.querySelector('#btn-right')
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  World + layout
+//  World + layout  (derived from canvas intrinsic size)
 // ─────────────────────────────────────────────────────────────────────────────
-const world = { w: canvas.width, h: canvas.height }
+const world = { w: canvas.width, h: canvas.height }  // 540 × 960
 
-const BREACH_Y       = world.h - CFG.CASTLE_H - CFG.CASTLE_BATT_H - 8   // ≈ 516
-const TURRET_START_Y = world.h - CFG.CASTLE_H - CFG.CASTLE_BATT_H - 52  // ≈ 472
+const BREACH_Y       = world.h - CFG.CASTLE_H - CFG.CASTLE_BATT_H - 8   // ≈ 876
+const TURRET_START_Y = world.h - CFG.CASTLE_H - CFG.CASTLE_BATT_H - 52  // ≈ 832
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Input
+//  Input state
 // ─────────────────────────────────────────────────────────────────────────────
-const keys = { left: false, right: false }
-let mouseX = world.w / 2   // tracks latest mouse/touch x in canvas coords
+const keys     = { left: false, right: false }
+let mouseX     = world.w / 2   // latest pointer x in canvas coords
+let mouseDown  = false          // true only while mouse button / finger is held
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Canvas button hit rects (populated each draw frame, read in input handlers)
+// ─────────────────────────────────────────────────────────────────────────────
+const canvasBtns = {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Game state
@@ -127,12 +133,9 @@ const state = {
   crystals: 0,
   spawnTimer: 0,
   time: 0,
-  countdownTimer: 0,   // seconds remaining in 3-2-1 countdown
+  countdownTimer: 0,
 
-  // Permanent upgrades (persisted to localStorage)
-  upgrades: { fireRate: 0, bulletDmg: 0, pierce: 0 },
-
-  // In-run upgrades (reset each run)
+  upgrades:      { fireRate: 0, bulletDmg: 0, pierce: 0 },
   inRunUpgrades: { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0 },
 
   bullets:        [],
@@ -141,7 +144,7 @@ const state = {
   coinPickups:    [],
   explosions:     [],
 
-  fireTimer: 0,   // counts down to next shot
+  fireTimer: 0,
 
   turret: {
     x:           world.w / 2,
@@ -166,11 +169,8 @@ function getBulletDmg() {
        + (state.upgrades.bulletDmg + state.inRunUpgrades.bulletDmg) * CFG.BULLET_DAMAGE_PER_LVL
 }
 function getPierceLevel() {
-  return CFG.BULLET_PIERCE_BASE
-       + state.upgrades.pierce
-       + state.inRunUpgrades.pierce
+  return CFG.BULLET_PIERCE_BASE + state.upgrades.pierce + state.inRunUpgrades.pierce
 }
-
 function getCost(type) {
   const bases = {
     fireRate:  CFG.COST_BASE_FIRE_RATE,
@@ -179,7 +179,6 @@ function getCost(type) {
   }
   return Math.floor(bases[type] * Math.pow(CFG.COST_SCALE_FACTOR, state.upgrades[type]))
 }
-
 function crystalDropCount() {
   return Math.max(CFG.CRYSTAL_VALUE_MIN,
     Math.min(CFG.CRYSTAL_VALUE_MAX,
@@ -226,8 +225,8 @@ function startCountdown() {
   shopEl.classList.add('hidden')
   upgradeMenuEl.classList.add('hidden')
   resetRun()
-  state.screen = SCREEN.COUNTDOWN
-  state.countdownTimer = 3.99  // 3 → 2 → 1 → GO!
+  state.screen       = SCREEN.COUNTDOWN
+  state.countdownTimer = 3.99
 }
 
 function startPlaying() {
@@ -247,16 +246,16 @@ function endRun() {
 //  Run lifecycle
 // ─────────────────────────────────────────────────────────────────────────────
 function resetRun() {
-  state.runKills      = 0
-  state.crystals      = 0
-  state.spawnTimer    = 0
-  state.time          = 0
-  state.fireTimer     = 0
-  state.enemies       = []
-  state.bullets       = []
-  state.crystalPickups= []
-  state.coinPickups   = []
-  state.explosions    = []
+  state.runKills       = 0
+  state.crystals       = 0
+  state.spawnTimer     = 0
+  state.time           = 0
+  state.fireTimer      = 0
+  state.enemies        = []
+  state.bullets        = []
+  state.crystalPickups = []
+  state.coinPickups    = []
+  state.explosions     = []
 
   state.inRunUpgrades = { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0 }
 
@@ -276,7 +275,7 @@ function applyTurretHit(dmg) {
     state.inRunUpgrades.shield -= 1
     spawnExplosion(state.turret.x, state.turret.y, 28, true)
   } else {
-    state.turret.hp = Math.max(0, state.turret.hp - dmg)
+    state.turret.hp          = Math.max(0, state.turret.hp - dmg)
     state.turret.lastHitTime = state.time
   }
 }
@@ -294,48 +293,50 @@ function updateTurretHP(dt) {
 }
 
 function updateTurret(dt) {
-  // Mouse/touch overrides keyboard: snap target toward mouseX
-  const targetX = mouseX
-  const diff     = targetX - state.turret.x
-  const dir      = Math.sign(diff)
-
-  // Also honour keyboard as fallback
   const keyDir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0)
-  const finalDir = keyDir !== 0 ? keyDir : (Math.abs(diff) > 2 ? dir : 0)
 
-  const rate  = finalDir !== 0 ? CFG.TURRET_ACCEL_RATE : CFG.TURRET_DECEL_RATE
-  state.turret.vx += (finalDir * CFG.TURRET_BASE_SPEED - state.turret.vx) * Math.min(1, rate * dt)
-
-  // If close to mouse target, clamp so we don't overshoot
-  if (keyDir === 0 && Math.abs(diff) < Math.abs(state.turret.vx * dt)) {
-    state.turret.x = targetX
-    state.turret.vx = 0
-  } else {
-    state.turret.x += state.turret.vx * dt
+  // Mouse / touch: only steer while pointer is held down
+  let mouseDir = 0
+  if (mouseDown && keyDir === 0) {
+    const diff = mouseX - state.turret.x
+    if (Math.abs(diff) > 2) mouseDir = Math.sign(diff)
   }
 
+  const finalDir = keyDir !== 0 ? keyDir : mouseDir
+  const rate     = finalDir !== 0 ? CFG.TURRET_ACCEL_RATE : CFG.TURRET_DECEL_RATE
+  state.turret.vx += (finalDir * CFG.TURRET_BASE_SPEED - state.turret.vx) * Math.min(1, rate * dt)
+
+  // Snap to mouse position when very close (prevents oscillation)
+  if (mouseDown && keyDir === 0) {
+    const diff = mouseX - state.turret.x
+    if (Math.abs(diff) <= Math.abs(state.turret.vx * dt) + 1) {
+      const half = CFG.TURRET_WIDTH / 2
+      state.turret.x  = Math.max(half, Math.min(world.w - half, mouseX))
+      state.turret.vx = 0
+      return
+    }
+  }
+
+  state.turret.x += state.turret.vx * dt
   const half = CFG.TURRET_WIDTH / 2
   state.turret.x = Math.max(half, Math.min(world.w - half, state.turret.x))
 }
 
 function fireBullet() {
   state.bullets.push({
-    x: state.turret.x,
-    y: state.turret.y - CFG.TURRET_HEIGHT / 2 - CFG.TURRET_BARREL_H,
-    vy: -CFG.BULLET_SPEED,
-    dmg: getBulletDmg(),
+    x:          state.turret.x,
+    y:          state.turret.y - CFG.TURRET_HEIGHT / 2 - CFG.TURRET_BARREL_H,
+    vy:         -CFG.BULLET_SPEED,
+    dmg:        getBulletDmg(),
     pierceLeft: getPierceLevel(),
-    r: CFG.BULLET_RADIUS,
+    r:          CFG.BULLET_RADIUS,
   })
 }
 
 function updateBullets(dt) {
   for (let i = state.bullets.length - 1; i >= 0; i--) {
-    const b = state.bullets[i]
-    b.y += b.vy * dt
-    if (b.y + b.r < 0) {
-      state.bullets.splice(i, 1)
-    }
+    state.bullets[i].y += state.bullets[i].vy * dt
+    if (state.bullets[i].y + state.bullets[i].r < 0) state.bullets.splice(i, 1)
   }
 }
 
@@ -360,24 +361,14 @@ function spawnEnemy() {
 
   const baseSpeed = CFG.ENEMY_BASE_SPEED + Math.random() * CFG.ENEMY_SPEED_VARIANCE
                   + Math.min(CFG.ENEMY_SPEED_TIME_CAP, state.time * CFG.ENEMY_SPEED_TIME_SCALE)
-  const speed = isElite ? baseSpeed * CFG.ELITE_SPEED_MULT : baseSpeed
+  const speed     = isElite ? baseSpeed * CFG.ELITE_SPEED_MULT : baseSpeed
 
   const baseHp = CFG.ENEMY_BASE_HP + Math.min(CFG.ENEMY_HP_TIME_CAP, state.time * CFG.ENEMY_HP_TIME_SCALE)
   const maxHp  = isElite ? Math.round(baseHp * CFG.ELITE_HP_MULT) : Math.round(baseHp)
 
-  // Color: normal = red/orange hue; elite = purple/magenta
-  let color
-  if (isElite) {
-    const hue   = Math.round(270 + (Math.random() - 0.5) * 30)
-    const sat   = Math.round(80  + Math.random() * 20)
-    const light = Math.round(45  + Math.random() * 10)
-    color = `hsl(${hue},${sat}%,${light}%)`
-  } else {
-    const hue   = Math.round(355 + (Math.random() - 0.5) * 20)
-    const sat   = Math.round(70  + Math.random() * 20)
-    const light = Math.round(45  + Math.random() * 10)
-    color = `hsl(${hue},${sat}%,${light}%)`
-  }
+  const color = isElite
+    ? `hsl(${Math.round(270 + (Math.random() - 0.5) * 30)},${Math.round(80 + Math.random() * 20)}%,${Math.round(45 + Math.random() * 10)}%)`
+    : `hsl(${Math.round(355 + (Math.random() - 0.5) * 20)},${Math.round(70 + Math.random() * 20)}%,${Math.round(45 + Math.random() * 10)}%)`
 
   state.enemies.push({ x, y, r, color, speed, hp: maxHp, maxHp, isElite, breaching: false })
 }
@@ -391,38 +382,30 @@ function handleEnemyMovement(dt) {
   for (let i = state.enemies.length - 1; i >= 0; i--) {
     const e = state.enemies[i]
 
-    // Cull enemies fully off-screen horizontally (side-spawned, no horizontal vel)
-    if (e.x + e.r <= 0 || e.x - e.r >= world.w) {
-      state.enemies.splice(i, 1)
-      continue
-    }
+    // Cull fully off-screen horizontally
+    if (e.x + e.r <= 0 || e.x - e.r >= world.w) { state.enemies.splice(i, 1); continue }
 
-    // Direct turret hit → turret damage
+    // Direct turret contact → damage
     if (!e.breaching) {
       const t = state.turret
-      const hitTurret =
-        e.y + e.r >= t.y - CFG.TURRET_HEIGHT / 2 &&
-        e.y - e.r <= t.y + CFG.TURRET_HEIGHT / 2 &&
-        e.x >= t.x - CFG.TURRET_WIDTH / 2 &&
-        e.x <= t.x + CFG.TURRET_WIDTH / 2
-
-      if (hitTurret) {
+      if (e.y + e.r >= t.y - CFG.TURRET_HEIGHT / 2 &&
+          e.y - e.r <= t.y + CFG.TURRET_HEIGHT / 2 &&
+          e.x >= t.x - CFG.TURRET_WIDTH / 2 &&
+          e.x <= t.x + CFG.TURRET_WIDTH / 2) {
         state.enemies.splice(i, 1)
         applyTurretHit(CFG.TURRET_HP_PER_HIT)
         spawnExplosion(e.x, e.y, 32, true)
         continue
       }
-
       if (e.y + e.r >= BREACH_Y) e.breaching = true
     }
 
-    // Breaching enemy stopped or reached castle wall → explode
+    // Breaching enemy hits castle
     if (e.breaching && (e.speed <= 0 || e.y + e.r >= world.h - CFG.CASTLE_H)) {
       state.enemies.splice(i, 1)
-      const dmg = e.isElite
+      applyCastleDamage(e.isElite
         ? Math.round(CFG.ENEMY_CASTLE_DAMAGE * CFG.ELITE_CASTLE_DAMAGE_MULT)
-        : CFG.ENEMY_CASTLE_DAMAGE
-      applyCastleDamage(dmg)
+        : CFG.ENEMY_CASTLE_DAMAGE)
       spawnExplosion(e.x, Math.min(e.y, world.h - CFG.CASTLE_H - 5), e.isElite ? 72 : 52, false)
     }
   }
@@ -447,25 +430,19 @@ function handleBulletEnemyCollisions() {
       const e = state.enemies[ei]
       if (e.breaching) continue
 
-      const dx = b.x - e.x
-      const dy = b.y - e.y
-      const dist2 = dx * dx + dy * dy
-      const minD  = b.r + e.r
-      if (dist2 > minD * minD) continue
+      const dx = b.x - e.x, dy = b.y - e.y
+      if (dx * dx + dy * dy > (b.r + e.r) * (b.r + e.r)) continue
 
-      // Hit!
+      // Hit
       e.hp -= b.dmg
       spawnExplosion(b.x, b.y, 18, true)
 
       if (e.hp <= 0) {
-        // Kill
         state.enemies.splice(ei, 1)
         state.runKills += 1
         state.money    += 1
-
         if (e.isElite) state.money += CFG.ELITE_COIN_BONUS
 
-        // Crystal drop
         const base  = crystalDropCount()
         const count = (state.inRunUpgrades.doubleGems > 0 && Math.random() < CFG.DOUBLE_GEMS_CHANCE)
                       ? base + 1 : base
@@ -476,8 +453,6 @@ function handleBulletEnemyCollisions() {
             vy: CFG.CRYSTAL_SPEED_MIN + Math.random() * (CFG.CRYSTAL_SPEED_MAX - CFG.CRYSTAL_SPEED_MIN),
           })
         }
-
-        // Coin drop
         if (Math.random() < CFG.COIN_DROP_CHANCE || e.isElite) {
           state.coinPickups.push({
             x:  e.x + (Math.random() - 0.5) * CFG.COIN_SPREAD_X,
@@ -487,13 +462,7 @@ function handleBulletEnemyCollisions() {
         }
       }
 
-      // Pierce logic
-      if (b.pierceLeft > 0) {
-        b.pierceLeft -= 1
-      } else {
-        state.bullets.splice(bi, 1)
-        break
-      }
+      if (b.pierceLeft > 0) { b.pierceLeft -= 1 } else { state.bullets.splice(bi, 1); break }
     }
   }
 }
@@ -506,26 +475,21 @@ function updateCrystals(dt) {
 
   for (let i = state.crystalPickups.length - 1; i >= 0; i--) {
     const c = state.crystalPickups[i]
-
     if (state.inRunUpgrades.magnet > 0) {
       c.x  += (tx - c.x) * CFG.CRYSTAL_MAGNET_PULL * dt
       c.vy  = Math.min(c.vy + CFG.CRYSTAL_MAGNET_ACCEL * dt, CFG.CRYSTAL_MAGNET_MAX_VY)
     }
     c.y += c.vy * dt
 
-    if (c.y + pr >= ty - 4 &&
-        c.y - pr <= ty + CFG.TURRET_HEIGHT + 4 &&
-        c.x >= tx - tw - pr &&
-        c.x <= tx + tw + pr) {
+    if (c.y + pr >= ty - 4 && c.y - pr <= ty + CFG.TURRET_HEIGHT + 4 &&
+        c.x >= tx - tw - pr && c.x <= tx + tw + pr) {
       state.crystalPickups.splice(i, 1)
       state.crystals += 1
-      if (state.crystals >= CFG.CRYSTAL_THRESHOLD && state.screen === SCREEN.PLAYING) {
-        state.screen = SCREEN.PLAYING  // keep playing, just pause for menu
+      if (state.crystals >= CFG.CRYSTAL_THRESHOLD && state.screen === SCREEN.PLAYING && !upgradePaused) {
         showUpgradeMenu()
       }
       continue
     }
-
     if (c.y - pr > world.h) state.crystalPickups.splice(i, 1)
   }
 }
@@ -540,15 +504,12 @@ function updateCoins(dt) {
     const c = state.coinPickups[i]
     c.y += c.vy * dt
 
-    if (c.y + pr >= ty - 4 &&
-        c.y - pr <= ty + CFG.TURRET_HEIGHT + 4 &&
-        c.x >= tx - tw - pr &&
-        c.x <= tx + tw + pr) {
+    if (c.y + pr >= ty - 4 && c.y - pr <= ty + CFG.TURRET_HEIGHT + 4 &&
+        c.x >= tx - tw - pr && c.x <= tx + tw + pr) {
       state.coinPickups.splice(i, 1)
       state.money += CFG.COIN_VALUE
       continue
     }
-
     if (c.y - pr > world.h) state.coinPickups.splice(i, 1)
   }
 }
@@ -563,9 +524,7 @@ function showUpgradeMenu() {
   upgradeMenuEl.classList.remove('hidden')
   upgradeChoicesEl.innerHTML = ''
 
-  const pool = IN_RUN_UPGRADE_DEFS.filter(u =>
-    !(u.key === 'magnet' && state.inRunUpgrades.magnet > 0)
-  )
+  const pool    = IN_RUN_UPGRADE_DEFS.filter(u => !(u.key === 'magnet' && state.inRunUpgrades.magnet > 0))
   const choices = [...pool].sort(() => Math.random() - 0.5).slice(0, 3)
 
   for (const upg of choices) {
@@ -583,11 +542,8 @@ function showUpgradeMenu() {
 }
 
 function applyInRunUpgrade(key) {
-  if (key === 'shield') {
-    state.inRunUpgrades.shield += CFG.SHIELD_STACKS_PER_PICK
-  } else {
-    state.inRunUpgrades[key] += 1
-  }
+  if (key === 'shield') state.inRunUpgrades.shield += CFG.SHIELD_STACKS_PER_PICK
+  else                  state.inRunUpgrades[key]   += 1
 }
 
 upgradeSkipBtn.addEventListener('click', () => {
@@ -599,9 +555,8 @@ upgradeSkipBtn.addEventListener('click', () => {
 //  HUD
 // ─────────────────────────────────────────────────────────────────────────────
 function updateHUD() {
-  moneyEl.textContent = `💰 ${state.money}`
+  moneyEl.textContent     = `💰 ${state.money}`
   crystalsHudEl.textContent = `💎 ${state.crystals}`
-
   const cPct = state.castle.hp / CFG.CASTLE_MAX_HP
   castleHpHudEl.textContent = `🏰 Kale: ${Math.ceil(state.castle.hp)}`
   castleHpHudEl.style.color = cPct <= 0.25 ? '#ef4444' : cPct <= 0.5 ? '#f97316' : ''
@@ -611,11 +566,9 @@ function renderShopButtons() {
   const fc = getCost('fireRate')
   const dc = getCost('bulletDmg')
   const pc = getCost('pierce')
-
   buyFireRateBtn.textContent  = `🔥 Atış Hızı  Sv.${state.upgrades.fireRate}  (+${CFG.BULLET_FIRE_RATE_PER_LVL}/s) — 💰${fc}`
   buyBulletDmgBtn.textContent = `💥 Mermi Hasarı Sv.${state.upgrades.bulletDmg} (+${CFG.BULLET_DAMAGE_PER_LVL}) — 💰${dc}`
-  buyPierceBtn.textContent    = `🎯 Delici Mermi Sv.${state.upgrades.pierce}  (+1 geçiş) — 💰${pc}`
-
+  buyPierceBtn.textContent    = `🎯 Delici Sv.${state.upgrades.pierce}  (+1 geçiş) — 💰${pc}`
   buyFireRateBtn.disabled  = state.money < fc
   buyBulletDmgBtn.disabled = state.money < dc
   buyPierceBtn.disabled    = state.money < pc
@@ -651,9 +604,9 @@ function drawCastle() {
 
   ctx.fillStyle = '#251560'
   const tBatt = 12, tGap = 8
-  for (let tx = 4; tx < tW - tBatt; tx += tBatt + tGap) {
-    ctx.fillRect(tx,           cY - 28 - 12, tBatt, 12)
-    ctx.fillRect(cW - tW + tx, cY - 28 - 12, tBatt, 12)
+  for (let tx2 = 4; tx2 < tW - tBatt; tx2 += tBatt + tGap) {
+    ctx.fillRect(tx2,          cY - 28 - 12, tBatt, 12)
+    ctx.fillRect(cW - tW + tx2, cY - 28 - 12, tBatt, 12)
   }
 
   ctx.fillStyle = '#7c3aed44'
@@ -669,9 +622,9 @@ function drawCastle() {
   ctx.fill()
 
   // Castle HP bar
-  const hpPct = state.castle.hp / CFG.CASTLE_MAX_HP
-  const barX = tW + 12, barW = cW - tW * 2 - 24
-  const barY = cY + 6,  barH = 10
+  const hpPct  = state.castle.hp / CFG.CASTLE_MAX_HP
+  const barX   = tW + 12, barW = cW - tW * 2 - 24
+  const barY   = cY + 6,  barH = 10
   ctx.fillStyle = '#0a0624'
   ctx.fillRect(barX, barY, barW, barH)
   const barColor = hpPct > 0.5 ? '#7c3aed' : hpPct > 0.25 ? '#f97316' : '#ef4444'
@@ -685,20 +638,17 @@ function drawCastle() {
     ctx.restore()
   }
 
-  ctx.fillStyle = '#a78bfa'
-  ctx.font = 'bold 13px Inter, system-ui, sans-serif'
-  ctx.textAlign = 'center'
+  ctx.fillStyle    = '#a78bfa'
+  ctx.font         = 'bold 13px Inter, system-ui, sans-serif'
+  ctx.textAlign    = 'center'
   ctx.fillText(`🏰 KOZMİK KALE  ${Math.ceil(state.castle.hp)} / ${CFG.CASTLE_MAX_HP}`, cW / 2, cY + 26)
   ctx.textAlign = 'left'
 }
 
 function drawCrystalBar() {
   const fill   = Math.min(1, state.crystals / CFG.CRYSTAL_THRESHOLD)
-  const barH   = 14
-  const barY   = 3
-  const margin = 4
-  const barX   = margin
-  const barW   = world.w - margin * 2
+  const barH   = 14, barY = 3, margin = 4
+  const barX   = margin, barW = world.w - margin * 2
 
   ctx.fillStyle = '#0a1628'
   ctx.fillRect(barX, barY, barW, barH)
@@ -726,11 +676,8 @@ function drawCrystalBar() {
 
   ctx.strokeStyle = '#0f172a'
   for (let i = 1; i < CFG.CRYSTAL_THRESHOLD; i++) {
-    const tx = barX + (barW / CFG.CRYSTAL_THRESHOLD) * i
-    ctx.beginPath()
-    ctx.moveTo(tx, barY)
-    ctx.lineTo(tx, barY + barH)
-    ctx.stroke()
+    const tx2 = barX + (barW / CFG.CRYSTAL_THRESHOLD) * i
+    ctx.beginPath(); ctx.moveTo(tx2, barY); ctx.lineTo(tx2, barY + barH); ctx.stroke()
   }
 
   ctx.fillStyle    = fill >= 0.8 ? '#ffffff' : '#94a3b8'
@@ -742,20 +689,39 @@ function drawCrystalBar() {
   ctx.textAlign    = 'left'
 }
 
+// Draw a rounded button on canvas; returns {x,y,w,h} hit rect
+function drawCanvasButton(cx, cy, w, h, label, bg, textColor, fontSize) {
+  const x = cx - w / 2, y = cy - h / 2
+  ctx.save()
+  ctx.shadowBlur  = 14
+  ctx.shadowColor = bg
+  ctx.fillStyle   = bg
+  ctx.beginPath()
+  ctx.roundRect(x, y, w, h, 10)
+  ctx.fill()
+  ctx.restore()
+  ctx.fillStyle    = textColor
+  ctx.font         = `bold ${fontSize || 22}px Inter, system-ui, sans-serif`
+  ctx.textAlign    = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(label, cx, cy)
+  ctx.textBaseline = 'alphabetic'
+  ctx.textAlign    = 'left'
+  return { x, y, w, h }
+}
+
 function drawTurret() {
-  const t   = state.turret
-  const tx  = t.x
-  const ty  = t.y
-  const tw  = CFG.TURRET_WIDTH
-  const th  = CFG.TURRET_HEIGHT
-  const bw  = CFG.TURRET_BARREL_W
-  const bh  = CFG.TURRET_BARREL_H
+  const t  = state.turret
+  const tw = CFG.TURRET_WIDTH
+  const th = CFG.TURRET_HEIGHT
+  const bw = CFG.TURRET_BARREL_W
+  const bh = CFG.TURRET_BARREL_H
 
   // HP bar above turret
-  const hpPct = t.hp / CFG.TURRET_MAX_HP
+  const hpPct  = t.hp / CFG.TURRET_MAX_HP
   const hpBarW = tw + 12
-  const hpBarX = tx - hpBarW / 2
-  const hpBarY = ty - th / 2 - 12
+  const hpBarX = t.x - hpBarW / 2
+  const hpBarY = t.y - th / 2 - 12
   ctx.fillStyle = '#1e293b'
   ctx.fillRect(hpBarX, hpBarY, hpBarW, 8)
   ctx.fillStyle = hpPct > 0.5 ? '#22c55e' : hpPct > 0.25 ? '#f97316' : '#ef4444'
@@ -768,7 +734,7 @@ function drawTurret() {
     ctx.lineWidth   = 3
     ctx.shadowBlur  = 14
     ctx.shadowColor = '#60a5fa'
-    ctx.strokeRect(tx - tw / 2 - 6, ty - th / 2 - 6, tw + 12, th + 12)
+    ctx.strokeRect(t.x - tw / 2 - 6, t.y - th / 2 - 6, tw + 12, th + 12)
     ctx.restore()
   }
 
@@ -777,24 +743,21 @@ function drawTurret() {
   ctx.shadowBlur  = 8
   ctx.shadowColor = '#38bdf8'
   ctx.fillStyle   = '#38bdf8'
-  ctx.fillRect(tx - bw / 2, ty - th / 2 - bh, bw, bh)
+  ctx.fillRect(t.x - bw / 2, t.y - th / 2 - bh, bw, bh)
   ctx.restore()
 
   // Base body
   ctx.fillStyle = state.inRunUpgrades.shield > 0 ? '#93c5fd' : '#7dd3fc'
-  ctx.fillRect(tx - tw / 2, ty - th / 2, tw, th)
-
-  // Base accent stripe
+  ctx.fillRect(t.x - tw / 2, t.y - th / 2, tw, th)
   ctx.fillStyle = '#0ea5e9'
-  ctx.fillRect(tx - tw / 2, ty, tw, 4)
+  ctx.fillRect(t.x - tw / 2, t.y, tw, 4)
 
-  // HP text (shield count)
   if (state.inRunUpgrades.shield > 0) {
     ctx.fillStyle    = '#fff'
     ctx.font         = 'bold 11px Inter, system-ui, sans-serif'
     ctx.textAlign    = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(`🛡${state.inRunUpgrades.shield}`, tx, ty - th / 2 + th / 2)
+    ctx.fillText(`🛡${state.inRunUpgrades.shield}`, t.x, t.y - th / 2 + th / 2)
     ctx.textBaseline = 'alphabetic'
     ctx.textAlign    = 'left'
   }
@@ -811,34 +774,28 @@ function drawEnemies() {
       ctx.fillStyle   = '#ff4422'
       ctx.fillRect(e.x - e.r, e.y - e.r, e.r * 2, e.r * 2)
       ctx.restore()
+    } else if (e.isElite) {
+      ctx.save()
+      ctx.shadowBlur  = 10 + 4 * Math.sin(state.time * 6)
+      ctx.shadowColor = e.color
+      ctx.fillStyle   = e.color
+      ctx.fillRect(e.x - e.r, e.y - e.r, e.r * 2, e.r * 2)
+      ctx.restore()
+      ctx.fillStyle    = '#fbbf24'
+      ctx.font         = `bold ${Math.max(10, e.r - 4)}px Inter, system-ui`
+      ctx.textAlign    = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('★', e.x, e.y)
+      ctx.textBaseline = 'alphabetic'
+      ctx.textAlign    = 'left'
     } else {
-      // Body
-      if (e.isElite) {
-        ctx.save()
-        ctx.shadowBlur  = 10 + 4 * Math.sin(state.time * 6)
-        ctx.shadowColor = e.color
-        ctx.fillStyle   = e.color
-        ctx.fillRect(e.x - e.r, e.y - e.r, e.r * 2, e.r * 2)
-        ctx.restore()
-        // Elite crown indicator
-        ctx.fillStyle = '#fbbf24'
-        ctx.font      = `bold ${Math.max(10, e.r - 4)}px Inter, system-ui`
-        ctx.textAlign    = 'center'
-        ctx.textBaseline = 'middle'
-        ctx.fillText('★', e.x, e.y)
-        ctx.textBaseline = 'alphabetic'
-        ctx.textAlign    = 'left'
-      } else {
-        ctx.fillStyle = e.color
-        ctx.fillRect(e.x - e.r, e.y - e.r, e.r * 2, e.r * 2)
-      }
+      ctx.fillStyle = e.color
+      ctx.fillRect(e.x - e.r, e.y - e.r, e.r * 2, e.r * 2)
     }
 
-    // HP bar (all enemies)
-    const barW  = e.r * 2
-    const barH  = 4
-    const barX  = e.x - e.r
-    const barY  = e.y - e.r - barH - 2
+    // HP bar above every enemy
+    const barW = e.r * 2, barH = 4
+    const barX = e.x - e.r, barY = e.y - e.r - barH - 2
     ctx.fillStyle = '#1e293b'
     ctx.fillRect(barX, barY, barW, barH)
     ctx.fillStyle = e.isElite
@@ -848,112 +805,98 @@ function drawEnemies() {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Screen drawing functions
-// ─────────────────────────────────────────────────────────────────────────────
 function drawBackground() {
   ctx.fillStyle = '#0f172a'
   ctx.fillRect(0, 0, world.w, world.h)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Screen draw functions
+// ─────────────────────────────────────────────────────────────────────────────
+
 function drawMenuScreen() {
   drawBackground()
 
-  // Subtle starfield
+  // Deterministic star field
   ctx.fillStyle = 'rgba(255,255,255,0.5)'
-  // We use deterministic positions based on index so they don't flicker
-  for (let i = 0; i < 80; i++) {
-    const sx = ((i * 137.5) % world.w)
-    const sy = ((i * 91.3)  % world.h)
+  for (let i = 0; i < 100; i++) {
+    const sx = (i * 137.5) % world.w
+    const sy = (i * 91.3)  % world.h
     const r  = 0.5 + (i % 3) * 0.5
-    ctx.beginPath()
-    ctx.arc(sx, sy, r, 0, Math.PI * 2)
-    ctx.fill()
+    ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill()
   }
 
-  // Title
+  // Title — two lines for portrait
+  const titleY = Math.round(world.h * 0.20)
   ctx.save()
-  ctx.shadowBlur  = 24
+  ctx.shadowBlur  = 28
   ctx.shadowColor = '#7c3aed'
   ctx.fillStyle   = '#c4b5fd'
-  ctx.font        = 'bold 64px Inter, system-ui, sans-serif'
   ctx.textAlign   = 'center'
-  ctx.fillText('TOPÇU SURVIVORS', world.w / 2, 140)
+  ctx.font        = 'bold 56px Inter, system-ui, sans-serif'
+  ctx.fillText('TOPÇU', world.w / 2, titleY)
+  ctx.font        = 'bold 50px Inter, system-ui, sans-serif'
+  ctx.fillText('SURVIVORS', world.w / 2, titleY + 62)
   ctx.restore()
 
   ctx.fillStyle = '#94a3b8'
-  ctx.font      = '22px Inter, system-ui, sans-serif'
+  ctx.font      = '19px Inter, system-ui, sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText('Kaleyi savunun. Düşmanları durdurun.', world.w / 2, 185)
+  ctx.fillText('Kaleyi savunun. Düşmanları durdurun.', world.w / 2, Math.round(world.h * 0.34))
 
-  // Stats row
+  // Stats — two compact lines
   ctx.fillStyle = '#64748b'
-  ctx.font      = '18px Inter, system-ui, sans-serif'
-  ctx.fillText(`💰 Altın: ${state.money}   |   🔥 Atış: Sv.${state.upgrades.fireRate}   |   💥 Hasar: Sv.${state.upgrades.bulletDmg}   |   🎯 Delici: Sv.${state.upgrades.pierce}`, world.w / 2, 220)
+  ctx.font      = '16px Inter, system-ui, sans-serif'
+  ctx.fillText(
+    `💰 Altın: ${state.money}   🎯 Delici: Sv.${state.upgrades.pierce}`,
+    world.w / 2, Math.round(world.h * 0.39))
+  ctx.fillText(
+    `🔥 Atış: Sv.${state.upgrades.fireRate}   💥 Hasar: Sv.${state.upgrades.bulletDmg}`,
+    world.w / 2, Math.round(world.h * 0.43))
 
-  // Play button (drawn on canvas)
-  drawCanvasButton(world.w / 2, 310, 220, 60, '▶  OYNA', '#16a34a', '#bbf7d0')
+  // Buttons — store hit rects for click handler
+  const playY = Math.round(world.h * 0.54)
+  const shopY = Math.round(world.h * 0.64)
+  canvasBtns.menuPlay = drawCanvasButton(world.w / 2, playY, 230, 66, '▶  OYNA', '#16a34a', '#bbf7d0', 24)
+  canvasBtns.menuShop = drawCanvasButton(world.w / 2, shopY, 230, 58, '⚙  YÜKSELTMELER', '#1d4ed8', '#bfdbfe', 20)
 
-  // Shop button
-  drawCanvasButton(world.w / 2, 390, 220, 52, '⚙  YÜKSELTMELER', '#1d4ed8', '#bfdbfe')
-
-  // Controls hint
   ctx.fillStyle = '#475569'
-  ctx.font      = '15px Inter, system-ui, sans-serif'
-  ctx.fillText('Fare / Dokunmatik ile hareket · Otomatik ateş', world.w / 2, 470)
+  ctx.font      = '14px Inter, system-ui, sans-serif'
+  ctx.fillText('Bas + Sürükle ile topçuyu hareket ettir', world.w / 2, Math.round(world.h * 0.74))
+  ctx.fillText('Otomatik ateş eder', world.w / 2, Math.round(world.h * 0.77))
 
   ctx.textAlign = 'left'
-}
-
-// Hit areas for canvas buttons (set each draw, read in click handler)
-const canvasBtns = {}
-function drawCanvasButton(cx, cy, w, h, label, bg, textColor) {
-  const x = cx - w / 2
-  const y = cy - h / 2
-  ctx.save()
-  ctx.shadowBlur  = 12
-  ctx.shadowColor = bg
-  ctx.fillStyle   = bg
-  ctx.beginPath()
-  ctx.roundRect(x, y, w, h, 10)
-  ctx.fill()
-  ctx.restore()
-  ctx.fillStyle    = textColor
-  ctx.font         = 'bold 22px Inter, system-ui, sans-serif'
-  ctx.textAlign    = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(label, cx, cy)
-  ctx.textBaseline = 'alphabetic'
-  return { x, y, w, h }
 }
 
 function drawCountdownScreen() {
   drawBackground()
   drawCastle()
 
-  // Objective text
+  const midW = world.w / 2
+
   ctx.fillStyle = '#e2e8f0'
-  ctx.font      = 'bold 26px Inter, system-ui, sans-serif'
+  ctx.font      = 'bold 22px Inter, system-ui, sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText('🎯 GÖREV: Düşmanları toplarla durdur, kaleyi koru!', world.w / 2, 180)
+  ctx.fillText('🎯 Düşmanları topla, kaleyi koru!', midW, Math.round(world.h * 0.24))
 
   ctx.fillStyle = '#94a3b8'
-  ctx.font      = '20px Inter, system-ui, sans-serif'
-  ctx.fillText('Fare / parmakla topçuyu hareket ettir · Otomatik ateş eder', world.w / 2, 220)
-  ctx.fillText('Kristalleri topla → Yükseltme aç  |  Altınları topla → Mağaza', world.w / 2, 248)
+  ctx.font      = '17px Inter, system-ui, sans-serif'
+  ctx.fillText('Bas + Sürükle → topçuyu hareket ettir', midW, Math.round(world.h * 0.29))
+  ctx.fillText('Kristal topla → Yükseltme', midW, Math.round(world.h * 0.33))
+  ctx.fillText('Altın topla → Mağaza', midW, Math.round(world.h * 0.36))
 
-  // Countdown number
-  const tick = Math.ceil(state.countdownTimer)
-  const frac = state.countdownTimer - Math.floor(state.countdownTimer) // 0→1 within each second (inverted)
-  const scale = 1 + (1 - frac) * 0.6  // big when just changed, shrinks as next tick approaches
+  // Animated countdown number
+  const tick  = Math.ceil(state.countdownTimer)
+  const frac  = state.countdownTimer - Math.floor(state.countdownTimer)
+  const scale = 1 + (1 - frac) * 0.55
 
   ctx.save()
-  ctx.translate(world.w / 2, 340)
+  ctx.translate(midW, Math.round(world.h * 0.52))
   ctx.scale(scale, scale)
-  ctx.shadowBlur  = 40
+  ctx.shadowBlur  = 44
   ctx.shadowColor = tick > 1 ? '#f97316' : '#22c55e'
   ctx.fillStyle   = tick > 1 ? '#fb923c' : '#4ade80'
-  ctx.font        = 'bold 120px Inter, system-ui, sans-serif'
+  ctx.font        = 'bold 110px Inter, system-ui, sans-serif'
   ctx.textAlign   = 'center'
   ctx.textBaseline= 'middle'
   ctx.fillText(tick <= 0 ? 'GİT!' : String(tick), 0, 0)
@@ -966,33 +909,31 @@ function drawCountdownScreen() {
 function drawEndScreen() {
   drawBackground()
 
-  // Dim overlay
+  // Translucent overlay
   ctx.fillStyle = 'rgba(0,0,0,0.55)'
   ctx.fillRect(0, 0, world.w, world.h)
 
-  // Result title
+  const midW = world.w / 2
   const lost = state.castle.hp <= 0
+
   ctx.save()
-  ctx.shadowBlur  = 24
+  ctx.shadowBlur  = 28
   ctx.shadowColor = lost ? '#ef4444' : '#22c55e'
   ctx.fillStyle   = lost ? '#f87171' : '#4ade80'
-  ctx.font        = 'bold 60px Inter, system-ui, sans-serif'
+  ctx.font        = 'bold 52px Inter, system-ui, sans-serif'
   ctx.textAlign   = 'center'
-  ctx.fillText(lost ? '🏚 KALE DÜŞTÜ' : '⚔ TUR SONA ERDİ', world.w / 2, 200)
+  ctx.fillText(lost ? '🏚 KALE DÜŞTÜ' : '⚔ TUR BİTTİ', midW, Math.round(world.h * 0.33))
   ctx.restore()
 
   ctx.fillStyle = '#e2e8f0'
-  ctx.font      = '28px Inter, system-ui, sans-serif'
+  ctx.font      = '26px Inter, system-ui, sans-serif'
   ctx.textAlign = 'center'
-  ctx.fillText(`Öldürülen düşman: ${state.runKills}`, world.w / 2, 262)
-  ctx.fillText(`Toplanan altın: 💰 ${state.money}`, world.w / 2, 300)
+  ctx.fillText(`Öldürülen: ${state.runKills} düşman`, midW, Math.round(world.h * 0.42))
+  ctx.fillText(`Toplanan: 💰 ${state.money} altın`, midW,   Math.round(world.h * 0.48))
 
-  // Buttons
-  const r1 = drawCanvasButton(world.w / 2 - 130, 390, 220, 58, '🔄 TEKRAR', '#16a34a', '#bbf7d0')
-  const r2 = drawCanvasButton(world.w / 2 + 130, 390, 220, 58, '🏠 ANA MENÜ', '#1d4ed8', '#bfdbfe')
-
-  canvasBtns.endRestart  = r1
-  canvasBtns.endMainMenu = r2
+  const btnY = Math.round(world.h * 0.60)
+  canvasBtns.endRestart  = drawCanvasButton(midW - 108, btnY, 190, 60, '🔄 TEKRAR',   '#16a34a', '#bbf7d0', 20)
+  canvasBtns.endMainMenu = drawCanvasButton(midW + 108, btnY, 190, 60, '🏠 ANA MENÜ', '#1d4ed8', '#bfdbfe', 20)
 
   ctx.textAlign = 'left'
 }
@@ -1001,7 +942,7 @@ function drawPlayingScreen() {
   drawBackground()
   drawCastle()
 
-  // Danger-zone tint between turret bottom and breach line
+  // Danger-zone tint
   const tBottom = state.turret.y + CFG.TURRET_HEIGHT / 2 + 4
   ctx.fillStyle = 'rgba(220, 38, 38, 0.06)'
   ctx.fillRect(0, tBottom, world.w, BREACH_Y - tBottom)
@@ -1012,17 +953,14 @@ function drawPlayingScreen() {
   ctx.lineWidth   = 2
   ctx.shadowBlur  = 10
   ctx.shadowColor = '#ef4444'
-  ctx.setLineDash([16, 8])
-  ctx.beginPath()
-  ctx.moveTo(0, BREACH_Y)
-  ctx.lineTo(world.w, BREACH_Y)
-  ctx.stroke()
+  ctx.setLineDash([14, 7])
+  ctx.beginPath(); ctx.moveTo(0, BREACH_Y); ctx.lineTo(world.w, BREACH_Y); ctx.stroke()
   ctx.restore()
 
   ctx.fillStyle = 'rgba(220, 38, 38, 0.8)'
-  ctx.font      = 'bold 12px Inter, system-ui, sans-serif'
+  ctx.font      = 'bold 11px Inter, system-ui, sans-serif'
   ctx.textAlign = 'left'
-  ctx.fillText('⚠ KALEYİ SAVUNUN — DÜŞMANLARı DURDURUN', 10, BREACH_Y - 4)
+  ctx.fillText('⚠ KALEYİ SAVUN', 8, BREACH_Y - 4)
 
   ctx.strokeStyle = '#334155'
   ctx.lineWidth   = 2
@@ -1038,9 +976,7 @@ function drawPlayingScreen() {
     ctx.shadowBlur  = 10
     ctx.shadowColor = '#fbbf24'
     ctx.fillStyle   = '#fde68a'
-    ctx.beginPath()
-    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2)
-    ctx.fill()
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill()
     ctx.restore()
   }
 
@@ -1051,31 +987,22 @@ function drawPlayingScreen() {
     ctx.shadowColor = '#7dd3fc'
     ctx.fillStyle   = '#7dd3fc'
     ctx.beginPath()
-    ctx.moveTo(c.x, c.y - 9)
-    ctx.lineTo(c.x + 7, c.y)
-    ctx.lineTo(c.x, c.y + 9)
-    ctx.lineTo(c.x - 7, c.y)
-    ctx.closePath()
-    ctx.fill()
+    ctx.moveTo(c.x, c.y - 9); ctx.lineTo(c.x + 7, c.y)
+    ctx.lineTo(c.x, c.y + 9); ctx.lineTo(c.x - 7, c.y)
+    ctx.closePath(); ctx.fill()
     ctx.restore()
   }
 
   // Coin pickups
   for (const c of state.coinPickups) {
     ctx.save()
-    ctx.shadowBlur  = 8
-    ctx.shadowColor = '#fbbf24'
-    ctx.beginPath()
-    ctx.arc(c.x, c.y, CFG.COIN_RADIUS, 0, Math.PI * 2)
-    ctx.fillStyle = '#fbbf24'
-    ctx.fill()
-    ctx.strokeStyle = '#d97706'
-    ctx.lineWidth   = 2
-    ctx.stroke()
+    ctx.shadowBlur = 8; ctx.shadowColor = '#fbbf24'
+    ctx.beginPath(); ctx.arc(c.x, c.y, CFG.COIN_RADIUS, 0, Math.PI * 2)
+    ctx.fillStyle = '#fbbf24'; ctx.fill()
+    ctx.strokeStyle = '#d97706'; ctx.lineWidth = 2; ctx.stroke()
     ctx.fillStyle    = '#78350f'
     ctx.font         = `bold ${CFG.COIN_RADIUS + 1}px Inter, system-ui`
-    ctx.textAlign    = 'center'
-    ctx.textBaseline = 'middle'
+    ctx.textAlign    = 'center'; ctx.textBaseline = 'middle'
     ctx.fillText('$', c.x, c.y)
     ctx.textBaseline = 'alphabetic'
     ctx.restore()
@@ -1097,13 +1024,11 @@ function drawPlayingScreen() {
       grad.addColorStop(1, 'transparent')
     }
     ctx.fillStyle = grad
-    ctx.beginPath()
-    ctx.arc(ex.x, ex.y, Math.max(1, ex.r), 0, Math.PI * 2)
-    ctx.fill()
+    ctx.beginPath(); ctx.arc(ex.x, ex.y, Math.max(1, ex.r), 0, Math.PI * 2); ctx.fill()
     ctx.restore()
   }
 
-  // Crystal progress bar (top)
+  // Crystal bar on top
   drawCrystalBar()
 }
 
@@ -1112,7 +1037,6 @@ function drawPlayingScreen() {
 // ─────────────────────────────────────────────────────────────────────────────
 function draw() {
   ctx.clearRect(0, 0, world.w, world.h)
-
   switch (state.screen) {
     case SCREEN.MENU:      drawMenuScreen();      break
     case SCREEN.COUNTDOWN: drawCountdownScreen(); break
@@ -1130,33 +1054,19 @@ function loop(now) {
   const dt = Math.min(0.033, (now - last) / 1000)
   last = now
 
-  // ── MENU ──────────────────────────────────────────────────────────────────
-  if (state.screen === SCREEN.MENU) {
-    draw()
-    requestAnimationFrame(loop)
-    return
+  if (state.screen === SCREEN.MENU || state.screen === SCREEN.END) {
+    draw(); requestAnimationFrame(loop); return
   }
 
-  // ── COUNTDOWN ─────────────────────────────────────────────────────────────
   if (state.screen === SCREEN.COUNTDOWN) {
     state.countdownTimer -= dt
     if (state.countdownTimer <= 0) startPlaying()
-    draw()
-    requestAnimationFrame(loop)
-    return
+    draw(); requestAnimationFrame(loop); return
   }
 
-  // ── END ───────────────────────────────────────────────────────────────────
-  if (state.screen === SCREEN.END) {
-    draw()
-    requestAnimationFrame(loop)
-    return
-  }
-
-  // ── PLAYING ───────────────────────────────────────────────────────────────
+  // PLAYING
   if (!upgradePaused) {
     state.time += dt
-
     updateTurret(dt)
     updateTurretHP(dt)
 
@@ -1167,7 +1077,7 @@ function loop(now) {
       state.fireTimer = 1 / getFireRate()
     }
 
-    // Spawn enemies
+    // Enemy spawning
     const targetInterval = Math.max(
       CFG.ENEMY_SPAWN_INTERVAL_MIN,
       CFG.ENEMY_SPAWN_INTERVAL_START - state.time * CFG.ENEMY_SPAWN_RATE_RAMP
@@ -1185,7 +1095,6 @@ function loop(now) {
     updateCoins(dt)
     updateExplosions(dt)
 
-    // End condition
     if (state.turret.hp <= 0 || state.castle.hp <= 0) endRun()
   }
 
@@ -1195,8 +1104,32 @@ function loop(now) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Input handlers
+//  Input helpers
 // ─────────────────────────────────────────────────────────────────────────────
+function canvasXY(clientX, clientY) {
+  const rect   = canvas.getBoundingClientRect()
+  const scaleX = world.w / rect.width
+  const scaleY = world.h / rect.height
+  return { cx: (clientX - rect.left) * scaleX, cy: (clientY - rect.top) * scaleY }
+}
+
+function hitTest(btn, cx, cy) {
+  return btn && cx >= btn.x && cx <= btn.x + btn.w && cy >= btn.y && cy <= btn.y + btn.h
+}
+
+function handleCanvasTap(cx, cy) {
+  if (state.screen === SCREEN.MENU) {
+    if (hitTest(canvasBtns.menuPlay, cx, cy)) { startCountdown(); return true }
+    if (hitTest(canvasBtns.menuShop, cx, cy)) { openShop();       return true }
+  }
+  if (state.screen === SCREEN.END) {
+    if (hitTest(canvasBtns.endRestart,  cx, cy)) { startCountdown(); return true }
+    if (hitTest(canvasBtns.endMainMenu, cx, cy)) { goToMenu();       return true }
+  }
+  return false
+}
+
+// ── Keyboard ──────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft'  || e.key.toLowerCase() === 'a') keys.left  = true
   if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') keys.right = true
@@ -1206,88 +1139,41 @@ document.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') keys.right = false
 })
 
-// Mouse tracking on canvas
-function canvasMouseX(e) {
-  const rect  = canvas.getBoundingClientRect()
-  const scaleX = world.w / rect.width
-  return (e.clientX - rect.left) * scaleX
-}
-canvas.addEventListener('mousemove', (e) => { mouseX = canvasMouseX(e) })
-
-// Canvas clicks — menu/end screen buttons
-canvas.addEventListener('click', (e) => {
-  const rect  = canvas.getBoundingClientRect()
-  const scaleX = world.w / rect.width
-  const scaleY = world.h / rect.height
-  const cx = (e.clientX - rect.left) * scaleX
-  const cy = (e.clientY - rect.top)  * scaleY
-
-  if (state.screen === SCREEN.MENU) {
-    // Play button area: center 310, 220×60
-    if (cx >= world.w / 2 - 110 && cx <= world.w / 2 + 110 && cy >= 280 && cy <= 340) {
-      startCountdown()
-      return
-    }
-    // Shop button area: center 390, 220×52
-    if (cx >= world.w / 2 - 110 && cx <= world.w / 2 + 110 && cy >= 364 && cy <= 416) {
-      openShop()
-      return
-    }
-  }
-
-  if (state.screen === SCREEN.END) {
-    const r = canvasBtns.endRestart
-    const m = canvasBtns.endMainMenu
-    if (r && cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h) {
-      startCountdown()
-      return
-    }
-    if (m && cx >= m.x && cx <= m.x + m.w && cy >= m.y && cy <= m.y + m.h) {
-      goToMenu()
-      return
-    }
-  }
+// ── Mouse — only move turret while button is held ─────────────────────────────
+canvas.addEventListener('mousedown', (e) => {
+  mouseDown = true
+  const { cx, cy } = canvasXY(e.clientX, e.clientY)
+  mouseX = cx
+  handleCanvasTap(cx, cy)
 })
+canvas.addEventListener('mousemove', (e) => {
+  if (mouseDown) mouseX = canvasXY(e.clientX, e.clientY).cx
+})
+canvas.addEventListener('mouseup',    () => { mouseDown = false })
+canvas.addEventListener('mouseleave', () => { mouseDown = false })
 
-// Touch tracking on canvas (for turret movement)
-function canvasTouchX(touch) {
-  const rect   = canvas.getBoundingClientRect()
-  const scaleX = world.w / rect.width
-  return (touch.clientX - rect.left) * scaleX
-}
-canvas.addEventListener('touchmove', (e) => {
-  e.preventDefault()
-  if (e.touches.length > 0) mouseX = canvasTouchX(e.touches[0])
-}, { passive: false })
+// ── Touch — finger on screen = held ──────────────────────────────────────────
 canvas.addEventListener('touchstart', (e) => {
   e.preventDefault()
   if (e.touches.length > 0) {
-    mouseX = canvasTouchX(e.touches[0])
-    // Tap on menu/end buttons
-    const rect   = canvas.getBoundingClientRect()
-    const scaleX = world.w / rect.width
-    const scaleY = world.h / rect.height
-    const cx = (e.touches[0].clientX - rect.left) * scaleX
-    const cy = (e.touches[0].clientY - rect.top)  * scaleY
-
-    if (state.screen === SCREEN.MENU) {
-      if (cx >= world.w / 2 - 110 && cx <= world.w / 2 + 110 && cy >= 280 && cy <= 340) {
-        startCountdown(); return
-      }
-      if (cx >= world.w / 2 - 110 && cx <= world.w / 2 + 110 && cy >= 364 && cy <= 416) {
-        openShop(); return
-      }
-    }
-    if (state.screen === SCREEN.END) {
-      const r = canvasBtns.endRestart
-      const m = canvasBtns.endMainMenu
-      if (r && cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h) { startCountdown(); return }
-      if (m && cx >= m.x && cx <= m.x + m.w && cy >= m.y && cy <= m.y + m.h) { goToMenu(); return }
-    }
+    mouseDown = true
+    const { cx, cy } = canvasXY(e.touches[0].clientX, e.touches[0].clientY)
+    mouseX = cx
+    handleCanvasTap(cx, cy)
   }
 }, { passive: false })
 
-// Hold buttons for keyboard-style control (still useful on mobile side buttons)
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault()
+  if (e.touches.length > 0) {
+    mouseX = canvasXY(e.touches[0].clientX, e.touches[0].clientY).cx
+  }
+}, { passive: false })
+
+canvas.addEventListener('touchend',   (e) => { e.preventDefault(); if (e.touches.length === 0) mouseDown = false }, { passive: false })
+canvas.addEventListener('touchcancel',()  => { mouseDown = false })
+
+// ── Physical side buttons (keyboard-style, work alongside mouse) ──────────────
 function setupHoldButton(btn, key) {
   btn.addEventListener('touchstart',  (e) => { e.preventDefault(); keys[key] = true  }, { passive: false })
   btn.addEventListener('touchend',    (e) => { e.preventDefault(); keys[key] = false }, { passive: false })
@@ -1300,7 +1186,7 @@ setupHoldButton(btnLeft,  'left')
 setupHoldButton(btnRight, 'right')
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Permanent shop (HTML overlay)
+//  Permanent shop (HTML overlay, accessible from main menu)
 // ─────────────────────────────────────────────────────────────────────────────
 function buyUpgrade(type) {
   const cost = getCost(type)
@@ -1324,7 +1210,7 @@ shopBackBtn.addEventListener('click', () => {
 //  roundRect polyfill (Safari < 15.4, older Chrome)
 // ─────────────────────────────────────────────────────────────────────────────
 if (!CanvasRenderingContext2D.prototype.roundRect) {
-  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+  CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
     r = Math.min(r, w / 2, h / 2)
     this.moveTo(x + r, y)
     this.lineTo(x + w - r, y)
@@ -1343,6 +1229,6 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
 //  Bootstrap
 // ─────────────────────────────────────────────────────────────────────────────
 loadUpgrades()
-mainHudEl.style.display = 'none'  // hide HUD until a run starts
+mainHudEl.style.display = 'none'
 goToMenu()
 requestAnimationFrame(loop)
