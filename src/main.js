@@ -364,22 +364,28 @@ function fireBullets() {
   const dmg      = getBulletDmg()
   const pierce   = getPierceLevel()
   for (let i = 0; i < count; i++) {
-    const offsetX = (i - halfSpan) * CFG.BULLET_SPREAD_PX
+    const step     = i - halfSpan                          // -N … 0 … +N from center
+    const offsetX  = step * CFG.BULLET_SPREAD_PX
+    const angleRad = step * CFG.BULLET_SIDE_ANGLE_DEG * (Math.PI / 180)
     state.bullets.push({
       x:          state.turret.x + offsetX,
       y:          fireY,
-      vy:         -CFG.BULLET_SPEED,
+      vx:          Math.sin(angleRad) * CFG.BULLET_SPEED,  // 0 for center, ±angled for sides
+      vy:         -Math.cos(angleRad) * CFG.BULLET_SPEED,
       dmg,
       pierceLeft: pierce,
       r:          CFG.BULLET_RADIUS,
+      hitIds:     new Set(),  // enemies already struck; prevents re-hit while overlapping
     })
   }
 }
 
 function updateBullets(dt) {
   for (let i = state.bullets.length - 1; i >= 0; i--) {
-    state.bullets[i].y += state.bullets[i].vy * dt
-    if (state.bullets[i].y + state.bullets[i].r < 0) state.bullets.splice(i, 1)
+    const b = state.bullets[i]
+    b.x += (b.vx || 0) * dt
+    b.y += b.vy * dt
+    if (b.y + b.r < 0 || b.x - b.r > world.w || b.x + b.r < 0) state.bullets.splice(i, 1)
   }
 }
 
@@ -480,8 +486,10 @@ function handleBulletEnemyCollisions() {
 
       const dx = b.x - e.x, dy = b.y - e.y
       if (dx * dx + dy * dy > (b.r + e.r) * (b.r + e.r)) continue
+      if (b.hitIds.has(e)) continue   // already hit this enemy — no re-hit while overlapping
 
       // Hit
+      b.hitIds.add(e)
       e.hp -= b.dmg
       spawnExplosion(b.x, b.y, CFG.EXPLOSION_HIT_BULLET_MAXR, true)
 

@@ -67,7 +67,9 @@ export const CFG = {
   AMMO_BAR_PULSE_SHADOW_AMP:    5,   // amplitude added to shadowBlur during low-ammo pulse
 
   // ── Bullet spread (multi-barrel) ───────────────────────────────────────────
-  BULLET_SPREAD_PX:       18,    // px gap between adjacent bullets in a volley
+  BULLET_SPREAD_PX:         18,  // px gap between adjacent bullets in a volley
+  BULLET_SIDE_ANGLE_DEG:    12,  // degrees of outward angle per step away from center barrel
+                                  // e.g. step=1 → 12°, step=2 → 24°; center bullet always 0°
 
   // ── Turret ─────────────────────────────────────────────────────────────────
   TURRET_BASE_SPEED:        700,  // px/s horizontal movement at full steering input
