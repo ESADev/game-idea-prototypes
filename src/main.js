@@ -1249,11 +1249,16 @@ function loop(now) {
     handleEnemyMovement(dt)
     updateBullets(dt)
     handleBulletEnemyCollisions()
-    updateCrystals(dt)
-    updateCoins(dt)
     updateExplosions(dt)
 
     if (state.turret.hp <= 0 || state.castle.hp <= 0) endRun()
+  }
+
+  // Crystals & coins keep falling even while upgrade menu is open
+  // (guard inside updateCrystals prevents re-triggering menu during pause)
+  if (state.screen === SCREEN.PLAYING) {
+    updateCrystals(dt)
+    updateCoins(dt)
   }
 
   updateHUD()
