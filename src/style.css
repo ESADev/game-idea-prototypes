@@ -32,11 +32,6 @@ body {
   width: min(1024px, 100%);
 }
 
-h1 {
-  margin: 0;
-  font-size: clamp(2.4rem, 4.8vw, 4rem);
-}
-
 .hud {
   display: flex;
   flex-wrap: wrap;
@@ -62,6 +57,7 @@ canvas {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  cursor: none;  /* hide cursor on canvas; turret tracks mouse */
 }
 
 /* ── Touch controls ─────────────────────────────────────── */
@@ -91,17 +87,18 @@ canvas {
   color: #fff;
 }
 
-/* ── Full-screen shop overlay (between runs) ─────────────── */
+/* ── Permanent shop overlay (from main menu) ─────────────── */
 .shop {
   position: absolute;
   inset: 0;
-  background: rgba(2, 6, 23, 0.93);
+  background: rgba(2, 6, 23, 0.95);
   display: grid;
   place-content: center;
   gap: 12px;
   padding: 20px;
   text-align: center;
   overflow-y: auto;
+  z-index: 20;
 }
 
 .shop h2 {
@@ -109,7 +106,7 @@ canvas {
   margin: 0;
 }
 
-/* ── In-run upgrade panel (floating side card — game stays visible) ── */
+/* ── In-run upgrade panel (floating side card) ── */
 .upgrade-panel {
   position: absolute;
   top: 50%;
