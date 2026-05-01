@@ -126,8 +126,14 @@ export const CFG = {
   ENEMY_RADIUS_VARIANCE:       6,      // ± random radius variation (px)
   ENEMY_BASE_SPEED:            28,     // base movement speed (px/s)
   ENEMY_SPEED_VARIANCE:        26,     // random speed addition per enemy (px/s)
-  ENEMY_SPEED_TIME_SCALE:      1.8,    // px/s speed bonus added per second of play time
-  ENEMY_SPEED_TIME_CAP:        36,     // max speed bonus from time scaling (px/s)
+  ENEMY_SPEED_TIME_SCALE:      1.8,    // px/s speed bonus added per second of play time (additive)
+  ENEMY_SPEED_TIME_CAP:        36,     // max additive speed bonus from time scaling (px/s)
+
+  // Global speed multiplier — ramps from START → MAX over RAMP_DURATION seconds
+  // Applied on top of the additive bonus; makes late-game enemies significantly faster
+  ENEMY_SPEED_MULT_START:      1.0,   // multiplier at t=0 (no change from base)
+  ENEMY_SPEED_MULT_MAX:        2.5,   // multiplier at full ramp (enemies are 2.5× base speed)
+  ENEMY_SPEED_MULT_RAMP_TIME:  240,   // seconds of play time to reach MULT_MAX
   ENEMY_TOP_SPAWN_CHANCE:      0.65,   // fraction of enemies that spawn from the top edge
   ENEMY_LEFT_SPAWN_CHANCE:     0.82,   // cumulative fraction for left-side spawn (remaining are right)
   ENEMY_SIDE_Y_FRACTION:       0.55,   // side enemies spawn in top this fraction of canvas height

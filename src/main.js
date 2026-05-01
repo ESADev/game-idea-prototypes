@@ -408,9 +408,13 @@ function spawnEnemy() {
   const baseR   = CFG.ENEMY_BASE_RADIUS + Math.floor((Math.random() - 0.5) * CFG.ENEMY_RADIUS_VARIANCE)
   const r       = isElite ? Math.round(baseR * CFG.ELITE_RADIUS_MULT) : baseR
 
-  const baseSpeed = CFG.ENEMY_BASE_SPEED + Math.random() * CFG.ENEMY_SPEED_VARIANCE
-                  + Math.min(CFG.ENEMY_SPEED_TIME_CAP, state.time * CFG.ENEMY_SPEED_TIME_SCALE)
-  const speed     = isElite ? baseSpeed * CFG.ELITE_SPEED_MULT : baseSpeed
+  // Additive time bonus (early-game ramp)
+  const addBonus   = Math.min(CFG.ENEMY_SPEED_TIME_CAP, state.time * CFG.ENEMY_SPEED_TIME_SCALE)
+  // Multiplicative global ramp (late-game escalation): lerp START → MAX over RAMP_TIME
+  const rampT      = Math.min(1, state.time / CFG.ENEMY_SPEED_MULT_RAMP_TIME)
+  const speedMult  = CFG.ENEMY_SPEED_MULT_START + (CFG.ENEMY_SPEED_MULT_MAX - CFG.ENEMY_SPEED_MULT_START) * rampT
+  const baseSpeed  = (CFG.ENEMY_BASE_SPEED + Math.random() * CFG.ENEMY_SPEED_VARIANCE + addBonus) * speedMult
+  const speed      = isElite ? baseSpeed * CFG.ELITE_SPEED_MULT : baseSpeed
 
   const baseHp = CFG.ENEMY_BASE_HP + Math.min(CFG.ENEMY_HP_TIME_CAP, state.time * CFG.ENEMY_HP_TIME_SCALE)
   const maxHp  = isElite ? Math.round(baseHp * CFG.ELITE_HP_MULT) : Math.round(baseHp)
