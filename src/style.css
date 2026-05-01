@@ -60,33 +60,6 @@ canvas {
   cursor: crosshair;
 }
 
-/* ── Touch controls ─────────────────────────────────────── */
-.touch-controls {
-  display: flex;
-  gap: 12px;
-  margin-top: 10px;
-}
-
-.touch-btn {
-  flex: 1;
-  min-height: 72px;
-  font-size: 2rem;
-  background: #1e3a5f;
-  color: #7dd3fc;
-  border: 2px solid #2563eb;
-  border-radius: 12px;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  touch-action: none;
-}
-
-.touch-btn:active {
-  background: #2563eb;
-  color: #fff;
-}
-
 /* ── Permanent shop overlay (from main menu) ─────────────── */
 .shop {
   position: absolute;
@@ -104,6 +77,13 @@ canvas {
 .shop h2 {
   font-size: clamp(2rem, 6vw, 3rem);
   margin: 0;
+}
+
+#shop-summary {
+  font-size: clamp(1.7rem, 5vw, 2.2rem);
+  font-weight: 700;
+  color: #fbbf24;
+  margin: 4px 0;
 }
 
 /* ── In-run upgrade panel (floating side card) ── */
@@ -136,19 +116,21 @@ canvas {
 .upgrade-choice-btn {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   padding: 10px 12px;
   text-align: left;
 }
 
 .upg-label {
-  font-size: clamp(1.2rem, 2.8vw, 1.55rem);
+  font-size: clamp(1.25rem, 3vw, 1.6rem);
   font-weight: 700;
+  color: #fff;
 }
 
 .upg-desc {
-  font-size: clamp(0.95rem, 2.2vw, 1.15rem);
-  opacity: 0.8;
+  font-size: clamp(0.85rem, 2vw, 1.0rem);
+  color: #94a3b8;
+  font-weight: 400;
 }
 
 .hidden {
@@ -177,11 +159,29 @@ button {
 .shop-btn {
   background: #2563eb;
   color: white;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: 12px 16px;
 }
 
 .shop-btn:disabled {
   background: #334155;
   cursor: not-allowed;
+}
+
+.shop-btn-title {
+  font-size: clamp(1.3rem, 3.5vw, 1.7rem);
+  font-weight: 700;
+  color: #fff;
+}
+
+.shop-btn-sub {
+  font-size: clamp(0.85rem, 2.2vw, 1.05rem);
+  color: #bfdbfe;
+  font-weight: 400;
+  opacity: 0.85;
 }
 
 .start-btn {

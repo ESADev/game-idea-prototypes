@@ -14,8 +14,8 @@ export const CFG = {
   CRYSTAL_DROP_CHANCE:    1.0,   // 1.0 = guaranteed drop every kill
   CRYSTAL_VALUE_MIN:      1,     // minimum crystals per drop (triangular dist)
   CRYSTAL_VALUE_MAX:      3,     // maximum crystals per drop
-  CRYSTAL_SPEED_MIN:      160,   // fall speed px/s (min)
-  CRYSTAL_SPEED_MAX:      220,   // fall speed px/s (max)
+  CRYSTAL_SPEED_MIN:      272,   // fall speed px/s (min)  — 1.7× original
+  CRYSTAL_SPEED_MAX:      374,   // fall speed px/s (max)  — 1.7× original
   CRYSTAL_SPREAD_X:       44,    // ± horizontal scatter around kill point (px)
   CRYSTAL_SPREAD_Y:       22,    // ± vertical   scatter around kill point (px)
   CRYSTAL_MAGNET_PULL:    1.8,   // x-snap factor per second when magnet active
@@ -25,8 +25,8 @@ export const CFG = {
 
   // ── Coin drops ─────────────────────────────────────────────────────────────
   COIN_DROP_CHANCE:   0.3,   // probability a coin drops per kill
-  COIN_SPEED_MIN:     290,   // fall speed px/s (min)
-  COIN_SPEED_MAX:     380,   // fall speed px/s (max)
+  COIN_SPEED_MIN:     493,   // fall speed px/s (min)  — 1.7× original
+  COIN_SPEED_MAX:     646,   // fall speed px/s (max)  — 1.7× original
   COIN_SPREAD_X:      24,    // ± horizontal scatter (px)
   COIN_VALUE:         2,     // bonus money awarded on pickup
   COIN_RADIUS:        9,     // visual + hitbox radius (px)
@@ -82,7 +82,9 @@ export const CFG = {
   ELITE_SPEED_MULT:           0.65,   // speed multiplier (elites move slower)
   ELITE_RADIUS_MULT:          1.45,   // size multiplier
   ELITE_CASTLE_DAMAGE_MULT:   2.0,    // extra castle damage when elite breaches
-  ELITE_COIN_BONUS:           3,      // bonus coins on elite kill
+  ELITE_COIN_MIN:             1,      // elite always drops at least this many coins
+  ELITE_COIN_CHANCE_2ND:     0.55,   // chance of a 2nd coin drop
+  ELITE_COIN_CHANCE_3RD:     0.25,   // chance of a 3rd coin drop
 
   // ── Castle ─────────────────────────────────────────────────────────────────
   CASTLE_MAX_HP:  300,

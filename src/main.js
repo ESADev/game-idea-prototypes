@@ -75,10 +75,6 @@ app.innerHTML = `
         <button id="upgrade-skip" class="skip-btn">Geç</button>
       </div>
     </div>
-    <div class="touch-controls" aria-label="Dokunmatik kontroller">
-      <button class="touch-btn" id="btn-left"  aria-label="Sola git">&#9664;</button>
-      <button class="touch-btn" id="btn-right" aria-label="Sağa git">&#9654;</button>
-    </div>
   </div>
 `
 
@@ -100,8 +96,6 @@ const shopBackBtn     = document.querySelector('#shop-back')
 const upgradeMenuEl   = document.querySelector('#upgrade-menu')
 const upgradeChoicesEl= document.querySelector('#upgrade-choices')
 const upgradeSkipBtn  = document.querySelector('#upgrade-skip')
-const btnLeft         = document.querySelector('#btn-left')
-const btnRight        = document.querySelector('#btn-right')
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  World + layout  (derived from canvas intrinsic size)
@@ -441,7 +435,6 @@ function handleBulletEnemyCollisions() {
         state.enemies.splice(ei, 1)
         state.runKills += 1
         state.money    += 1
-        if (e.isElite) state.money += CFG.ELITE_COIN_BONUS
 
         const base  = crystalDropCount()
         const count = (state.inRunUpgrades.doubleGems > 0 && Math.random() < CFG.DOUBLE_GEMS_CHANCE)
@@ -453,7 +446,19 @@ function handleBulletEnemyCollisions() {
             vy: CFG.CRYSTAL_SPEED_MIN + Math.random() * (CFG.CRYSTAL_SPEED_MAX - CFG.CRYSTAL_SPEED_MIN),
           })
         }
-        if (Math.random() < CFG.COIN_DROP_CHANCE || e.isElite) {
+        if (e.isElite) {
+          // Elite always drops 1 coin, chance for 2nd and 3rd
+          const coinCount = CFG.ELITE_COIN_MIN
+            + (Math.random() < CFG.ELITE_COIN_CHANCE_2ND ? 1 : 0)
+            + (Math.random() < CFG.ELITE_COIN_CHANCE_3RD ? 1 : 0)
+          for (let cc = 0; cc < coinCount; cc++) {
+            state.coinPickups.push({
+              x:  e.x + (Math.random() - 0.5) * CFG.COIN_SPREAD_X * 1.5,
+              y:  e.y,
+              vy: CFG.COIN_SPEED_MIN + Math.random() * (CFG.COIN_SPEED_MAX - CFG.COIN_SPEED_MIN),
+            })
+          }
+        } else if (Math.random() < CFG.COIN_DROP_CHANCE) {
           state.coinPickups.push({
             x:  e.x + (Math.random() - 0.5) * CFG.COIN_SPREAD_X,
             y:  e.y,
@@ -562,13 +567,18 @@ function updateHUD() {
   castleHpHudEl.style.color = cPct <= 0.25 ? '#ef4444' : cPct <= 0.5 ? '#f97316' : ''
 }
 
+function mkShopBtnHTML(emoji, name, level, detail, cost) {
+  return `<span class="shop-btn-title">${emoji} ${name}</span>` +
+         `<span class="shop-btn-sub">Seviye ${level} · ${detail} · 💰 ${cost}</span>`
+}
+
 function renderShopButtons() {
   const fc = getCost('fireRate')
   const dc = getCost('bulletDmg')
   const pc = getCost('pierce')
-  buyFireRateBtn.textContent  = `🔥 Atış Hızı  Sv.${state.upgrades.fireRate}  (+${CFG.BULLET_FIRE_RATE_PER_LVL}/s) — 💰${fc}`
-  buyBulletDmgBtn.textContent = `💥 Mermi Hasarı Sv.${state.upgrades.bulletDmg} (+${CFG.BULLET_DAMAGE_PER_LVL}) — 💰${dc}`
-  buyPierceBtn.textContent    = `🎯 Delici Sv.${state.upgrades.pierce}  (+1 geçiş) — 💰${pc}`
+  buyFireRateBtn.innerHTML  = mkShopBtnHTML('🔥', 'Atış Hızı',    state.upgrades.fireRate,  `+${CFG.BULLET_FIRE_RATE_PER_LVL} atış/sn`, fc)
+  buyBulletDmgBtn.innerHTML = mkShopBtnHTML('💥', 'Mermi Hasarı', state.upgrades.bulletDmg, `+${CFG.BULLET_DAMAGE_PER_LVL} hasar`,      dc)
+  buyPierceBtn.innerHTML    = mkShopBtnHTML('🎯', 'Delici Mermi', state.upgrades.pierce,    '+1 geçiş',                                   pc)
   buyFireRateBtn.disabled  = state.money < fc
   buyBulletDmgBtn.disabled = state.money < dc
   buyPierceBtn.disabled    = state.money < pc
@@ -717,11 +727,11 @@ function drawTurret() {
   const bw = CFG.TURRET_BARREL_W
   const bh = CFG.TURRET_BARREL_H
 
-  // HP bar above turret
+  // HP bar below turret body
   const hpPct  = t.hp / CFG.TURRET_MAX_HP
   const hpBarW = tw + 12
   const hpBarX = t.x - hpBarW / 2
-  const hpBarY = t.y - th / 2 - 12
+  const hpBarY = t.y + th / 2 + 5
   ctx.fillStyle = '#1e293b'
   ctx.fillRect(hpBarX, hpBarY, hpBarW, 8)
   ctx.fillStyle = hpPct > 0.5 ? '#22c55e' : hpPct > 0.25 ? '#f97316' : '#ef4444'
@@ -1172,18 +1182,6 @@ canvas.addEventListener('touchmove', (e) => {
 
 canvas.addEventListener('touchend',   (e) => { e.preventDefault(); if (e.touches.length === 0) mouseDown = false }, { passive: false })
 canvas.addEventListener('touchcancel',()  => { mouseDown = false })
-
-// ── Physical side buttons (keyboard-style, work alongside mouse) ──────────────
-function setupHoldButton(btn, key) {
-  btn.addEventListener('touchstart',  (e) => { e.preventDefault(); keys[key] = true  }, { passive: false })
-  btn.addEventListener('touchend',    (e) => { e.preventDefault(); keys[key] = false }, { passive: false })
-  btn.addEventListener('touchcancel', ()  => { keys[key] = false })
-  btn.addEventListener('mousedown',   (e) => { e.preventDefault(); keys[key] = true  })
-  btn.addEventListener('mouseup',     ()  => { keys[key] = false })
-  btn.addEventListener('mouseleave',  ()  => { keys[key] = false })
-}
-setupHoldButton(btnLeft,  'left')
-setupHoldButton(btnRight, 'right')
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Permanent shop (HTML overlay, accessible from main menu)
