@@ -1223,14 +1223,17 @@ function loop(now) {
     updateTurret(dt)
     updateTurretHP(dt)
 
+    // While button held: reset lastFireTime every frame so regen delay
+    // only starts counting from the moment the player RELEASES
+    if (mouseDown || keys.shoot) state.lastFireTime = state.time
+
     // Fire timer always counts down; shots only fire when holding & have ammo
     state.fireTimer -= dt
     if (state.fireTimer <= 0) {
       state.fireTimer = 1 / getFireRate()
       if ((mouseDown || keys.shoot) && state.ammo >= CFG.AMMO_COST_PER_VOLLEY) {
         fireBullets()
-        state.ammo        -= CFG.AMMO_COST_PER_VOLLEY
-        state.lastFireTime = state.time
+        state.ammo -= CFG.AMMO_COST_PER_VOLLEY
       }
     }
     updateAmmo(dt)
@@ -1249,16 +1252,11 @@ function loop(now) {
     handleEnemyMovement(dt)
     updateBullets(dt)
     handleBulletEnemyCollisions()
+    updateCrystals(dt)
+    updateCoins(dt)
     updateExplosions(dt)
 
     if (state.turret.hp <= 0 || state.castle.hp <= 0) endRun()
-  }
-
-  // Crystals & coins keep falling even while upgrade menu is open
-  // (guard inside updateCrystals prevents re-triggering menu during pause)
-  if (state.screen === SCREEN.PLAYING) {
-    updateCrystals(dt)
-    updateCoins(dt)
   }
 
   updateHUD()
