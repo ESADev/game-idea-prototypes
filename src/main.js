@@ -290,7 +290,10 @@ function spawnEnemy() {
   const roll = Math.random()
   let x, y
   if (roll < CFG.ENEMY_TOP_SPAWN_CHANCE) {
-    x = Math.random() * world.w
+    // Keep x inside [margin, world.w - margin] so the enemy body is fully
+    // within the canvas from the moment it enters the visible area.
+    const m = CFG.ENEMY_SPAWN_MARGIN
+    x = m + Math.random() * (world.w - m * 2)
     y = -CFG.ENEMY_BASE_RADIUS * 2
   } else if (roll < CFG.ENEMY_LEFT_SPAWN_CHANCE) {
     x = -CFG.ENEMY_BASE_RADIUS * 2

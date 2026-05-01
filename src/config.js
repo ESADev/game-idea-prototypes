@@ -74,6 +74,7 @@ export const CFG = {
   ENEMY_TOP_SPAWN_CHANCE:     0.65,   // fraction that spawn from the top edge
   ENEMY_LEFT_SPAWN_CHANCE:    0.82,   // cumulative fraction for left-side spawn
   ENEMY_SIDE_Y_FRACTION:      0.55,   // side enemies spawn in top X% of height
+  ENEMY_SPAWN_MARGIN:         28,     // px kept from each edge for top spawns (> max possible radius)
   ENEMY_BREACH_DECEL:         220,    // px/s² deceleration after crossing breach line
   ENEMY_CASTLE_DAMAGE:        20,     // HP removed from castle per enemy explosion
 
