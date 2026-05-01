@@ -45,6 +45,11 @@ const IN_RUN_UPGRADE_DEFS = [
     label: '🔫 Ekstra Mermi',
     desc: () => `Mevcut: ${getTotalBullets()} mermi → +2 mermi (sağ+sol)`,
   },
+  {
+    key: 'ammoCapacity',
+    label: '🔋 Mermi Kapasitesi',
+    desc: () => `Mevcut: ${getMaxAmmo()} mermi → +${CFG.AMMO_CAPACITY_PER_UPGRADE} mermi`,
+  },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -110,13 +115,13 @@ const upgradeSkipBtn    = document.querySelector('#upgrade-skip')
 // ─────────────────────────────────────────────────────────────────────────────
 const world = { w: canvas.width, h: canvas.height }  // 540 × 960
 
-const BREACH_Y       = world.h - CFG.CASTLE_H - CFG.CASTLE_BATT_H - 8   // ≈ 876
-const TURRET_START_Y = world.h - CFG.CASTLE_H - CFG.CASTLE_BATT_H - 52  // ≈ 832
+const BREACH_Y       = world.h - CFG.CASTLE_H - CFG.CASTLE_BATT_H - CFG.BREACH_Y_OFFSET
+const TURRET_START_Y = world.h - CFG.CASTLE_H - CFG.CASTLE_BATT_H - CFG.TURRET_START_Y_OFFSET
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Input state
 // ─────────────────────────────────────────────────────────────────────────────
-const keys     = { left: false, right: false }
+const keys     = { left: false, right: false, shoot: false }
 let mouseX     = world.w / 2   // latest pointer x in canvas coords
 let mouseDown  = false          // true only while mouse button / finger is held
 
@@ -138,7 +143,7 @@ const state = {
   countdownTimer: 0,
 
   upgrades:          { fireRate: 0, bulletDmg: 0, pierce: 0, bulletCount: 0 },
-  inRunUpgrades:     { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0 },
+  inRunUpgrades:     { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0, ammoCapacity: 0 },
   inRunUpgradesCount: 0,  // total in-run upgrades taken this run (drives crystal cost curve)
 
   bullets:        [],
@@ -147,7 +152,9 @@ const state = {
   coinPickups:    [],
   explosions:     [],
 
-  fireTimer: 0,
+  fireTimer:    0,
+  ammo:         CFG.AMMO_MAX_BASE,  // current ammo; drains per shot, regens over time
+  lastFireTime: -999,               // state.time when last shot was fired; drives regen delay
 
   turret: {
     x:           world.w / 2,
@@ -178,6 +185,9 @@ function getTotalBullets() {
   return 1
     + 2 * state.upgrades.bulletCount
     + 2 * state.inRunUpgrades.bulletCount
+}
+function getMaxAmmo() {
+  return CFG.AMMO_MAX_BASE + state.inRunUpgrades.ammoCapacity * CFG.AMMO_CAPACITY_PER_UPGRADE
 }
 // Crystal cost for the next in-run upgrade (exponential like Vampire Survivors)
 // n=0→5, n=1→8, n=2→12, n=3→18, n=4→28, n=5→44 … (×1.55 each step)
@@ -240,8 +250,8 @@ function startCountdown() {
   shopEl.classList.add('hidden')
   upgradeMenuEl.classList.add('hidden')
   resetRun()
-  state.screen       = SCREEN.COUNTDOWN
-  state.countdownTimer = 3.99
+  state.screen         = SCREEN.COUNTDOWN
+  state.countdownTimer = CFG.COUNTDOWN_TIMER_START
 }
 
 function startPlaying() {
@@ -271,9 +281,11 @@ function resetRun() {
   state.crystalPickups = []
   state.coinPickups    = []
   state.explosions     = []
+  state.lastFireTime   = -999
 
-  state.inRunUpgrades     = { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0 }
+  state.inRunUpgrades      = { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0, ammoCapacity: 0 }
   state.inRunUpgradesCount = 0
+  state.ammo               = getMaxAmmo()  // call after inRunUpgrades reset
 
   state.turret.x           = world.w / 2
   state.turret.vx          = 0
@@ -289,7 +301,7 @@ function resetRun() {
 function applyTurretHit(dmg) {
   if (state.inRunUpgrades.shield > 0) {
     state.inRunUpgrades.shield -= 1
-    spawnExplosion(state.turret.x, state.turret.y, 28, true)
+    spawnExplosion(state.turret.x, state.turret.y, CFG.EXPLOSION_HIT_SHIELD_MAXR, true)
   } else {
     state.turret.hp          = Math.max(0, state.turret.hp - dmg)
     state.turret.lastHitTime = state.time
@@ -315,7 +327,7 @@ function updateTurret(dt) {
   let mouseDir = 0
   if (mouseDown && keyDir === 0) {
     const diff = mouseX - state.turret.x
-    if (Math.abs(diff) > 2) mouseDir = Math.sign(diff)
+    if (Math.abs(diff) > CFG.TURRET_STEER_DEADZONE) mouseDir = Math.sign(diff)
   }
 
   const finalDir = keyDir !== 0 ? keyDir : mouseDir
@@ -325,7 +337,7 @@ function updateTurret(dt) {
   // Snap to mouse position when very close (prevents oscillation)
   if (mouseDown && keyDir === 0) {
     const diff = mouseX - state.turret.x
-    if (Math.abs(diff) <= Math.abs(state.turret.vx * dt) + 1) {
+    if (Math.abs(diff) <= Math.abs(state.turret.vx * dt) + CFG.TURRET_SNAP_MARGIN) {
       const half = CFG.TURRET_WIDTH / 2
       state.turret.x  = Math.max(half, Math.min(world.w - half, mouseX))
       state.turret.vx = 0
@@ -336,6 +348,13 @@ function updateTurret(dt) {
   state.turret.x += state.turret.vx * dt
   const half = CFG.TURRET_WIDTH / 2
   state.turret.x = Math.max(half, Math.min(world.w - half, state.turret.x))
+}
+
+function updateAmmo(dt) {
+  // Regen kicks in only after AMMO_REGEN_DELAY seconds of not shooting
+  if (state.time - state.lastFireTime >= CFG.AMMO_REGEN_DELAY) {
+    state.ammo = Math.min(getMaxAmmo(), state.ammo + CFG.AMMO_REGEN_RATE * dt)
+  }
 }
 
 function fireBullets() {
@@ -418,7 +437,7 @@ function handleEnemyMovement(dt) {
           e.x <= t.x + CFG.TURRET_WIDTH / 2) {
         state.enemies.splice(i, 1)
         applyTurretHit(CFG.TURRET_HP_PER_HIT)
-        spawnExplosion(e.x, e.y, 32, true)
+        spawnExplosion(e.x, e.y, CFG.EXPLOSION_HIT_TURRET_MAXR, true)
         continue
       }
       if (e.y + e.r >= BREACH_Y) e.breaching = true
@@ -430,13 +449,18 @@ function handleEnemyMovement(dt) {
       applyCastleDamage(e.isElite
         ? Math.round(CFG.ENEMY_CASTLE_DAMAGE * CFG.ELITE_CASTLE_DAMAGE_MULT)
         : CFG.ENEMY_CASTLE_DAMAGE)
-      spawnExplosion(e.x, Math.min(e.y, world.h - CFG.CASTLE_H - 5), e.isElite ? 72 : 52, false)
+      spawnExplosion(
+        e.x,
+        Math.min(e.y, world.h - CFG.CASTLE_H - CFG.ENEMY_BREACH_EXPLOSION_MARGIN),
+        e.isElite ? CFG.EXPLOSION_BREACH_ELITE_MAXR : CFG.EXPLOSION_BREACH_NORMAL_MAXR,
+        false
+      )
     }
   }
 }
 
 function spawnExplosion(x, y, maxR, isPaddle) {
-  state.explosions.push({ x, y, r: 4, maxR, age: 0, maxAge: 0.55, isPaddle })
+  state.explosions.push({ x, y, r: CFG.EXPLOSION_INIT_R, maxR, age: 0, maxAge: CFG.EXPLOSION_MAX_AGE, isPaddle })
 }
 function updateExplosions(dt) {
   for (let i = state.explosions.length - 1; i >= 0; i--) {
@@ -459,7 +483,7 @@ function handleBulletEnemyCollisions() {
 
       // Hit
       e.hp -= b.dmg
-      spawnExplosion(b.x, b.y, 18, true)
+      spawnExplosion(b.x, b.y, CFG.EXPLOSION_HIT_BULLET_MAXR, true)
 
       if (e.hp <= 0) {
         state.enemies.splice(ei, 1)
@@ -483,7 +507,7 @@ function handleBulletEnemyCollisions() {
             + (Math.random() < CFG.ELITE_COIN_CHANCE_3RD ? 1 : 0)
           for (let cc = 0; cc < coinCount; cc++) {
             state.coinPickups.push({
-              x:  e.x + (Math.random() - 0.5) * CFG.COIN_SPREAD_X * 1.5,
+              x:  e.x + (Math.random() - 0.5) * CFG.COIN_SPREAD_X * CFG.COIN_ELITE_SPREAD_MULT,
               y:  e.y,
               vy: CFG.COIN_SPEED_MIN + Math.random() * (CFG.COIN_SPEED_MAX - CFG.COIN_SPEED_MIN),
             })
@@ -507,6 +531,7 @@ function updateCrystals(dt) {
   const ty = state.turret.y - CFG.TURRET_HEIGHT / 2
   const tw = CFG.TURRET_WIDTH / 2
   const pr = CFG.CRYSTAL_PICKUP_RADIUS
+  const mg = CFG.CRYSTAL_PICKUP_MARGIN
 
   for (let i = state.crystalPickups.length - 1; i >= 0; i--) {
     const c = state.crystalPickups[i]
@@ -516,7 +541,7 @@ function updateCrystals(dt) {
     }
     c.y += c.vy * dt
 
-    if (c.y + pr >= ty - 4 && c.y - pr <= ty + CFG.TURRET_HEIGHT + 4 &&
+    if (c.y + pr >= ty - mg && c.y - pr <= ty + CFG.TURRET_HEIGHT + mg &&
         c.x >= tx - tw - pr && c.x <= tx + tw + pr) {
       state.crystalPickups.splice(i, 1)
       state.crystals += 1
@@ -534,12 +559,13 @@ function updateCoins(dt) {
   const ty = state.turret.y - CFG.TURRET_HEIGHT / 2
   const tw = CFG.TURRET_WIDTH / 2
   const pr = CFG.COIN_PICKUP_RADIUS
+  const mg = CFG.COIN_PICKUP_MARGIN
 
   for (let i = state.coinPickups.length - 1; i >= 0; i--) {
     const c = state.coinPickups[i]
     c.y += c.vy * dt
 
-    if (c.y + pr >= ty - 4 && c.y - pr <= ty + CFG.TURRET_HEIGHT + 4 &&
+    if (c.y + pr >= ty - mg && c.y - pr <= ty + CFG.TURRET_HEIGHT + mg &&
         c.x >= tx - tw - pr && c.x <= tx + tw + pr) {
       state.coinPickups.splice(i, 1)
       state.money += CFG.COIN_VALUE
@@ -562,7 +588,10 @@ function showUpgradeMenu() {
   upgradeMenuEl.classList.remove('hidden')
   upgradeChoicesEl.innerHTML = ''
 
-  const pool    = IN_RUN_UPGRADE_DEFS.filter(u => !(u.key === 'magnet' && state.inRunUpgrades.magnet > 0))
+  const pool = IN_RUN_UPGRADE_DEFS.filter(u => {
+    if (u.key === 'magnet' && state.inRunUpgrades.magnet > 0) return false
+    return true
+  })
   const choices = [...pool].sort(() => Math.random() - 0.5).slice(0, 3)
 
   for (const upg of choices) {
@@ -597,11 +626,11 @@ upgradeSkipBtn.addEventListener('click', () => {
 //  HUD
 // ─────────────────────────────────────────────────────────────────────────────
 function updateHUD() {
-  moneyEl.textContent     = `💰 ${state.money}`
+  moneyEl.textContent       = `💰 ${state.money}`
   crystalsHudEl.textContent = `💎 ${state.crystals}`
   const cPct = state.castle.hp / CFG.CASTLE_MAX_HP
   castleHpHudEl.textContent = `🏰 Kale: ${Math.ceil(state.castle.hp)}`
-  castleHpHudEl.style.color = cPct <= 0.25 ? '#ef4444' : cPct <= 0.5 ? '#f97316' : ''
+  castleHpHudEl.style.color = cPct <= CFG.HUD_HP_LOW ? '#ef4444' : cPct <= CFG.HUD_HP_MID ? '#f97316' : ''
 }
 
 function mkShopBtnHTML(emoji, name, level, detail, cost) {
@@ -616,7 +645,7 @@ function renderShopButtons() {
   const bc = getCost('bulletCount')
   buyFireRateBtn.innerHTML    = mkShopBtnHTML('🔥', 'Atış Hızı',    state.upgrades.fireRate,    `+${CFG.BULLET_FIRE_RATE_PER_LVL} atış/sn`, fc)
   buyBulletDmgBtn.innerHTML   = mkShopBtnHTML('💥', 'Mermi Hasarı', state.upgrades.bulletDmg,   `+${CFG.BULLET_DAMAGE_PER_LVL} hasar`,      dc)
-  buyPierceBtn.innerHTML      = mkShopBtnHTML('🎯', 'Delici Mermi', state.upgrades.pierce,      '+1 geçiş',                                   pc)
+  buyPierceBtn.innerHTML      = mkShopBtnHTML('🎯', 'Delici Mermi', state.upgrades.pierce,      '+1 geçiş',                                  pc)
   buyBulletCountBtn.innerHTML = mkShopBtnHTML('🔫', 'Mermi Sayısı', state.upgrades.bulletCount, '+2 mermi (sağ+sol)',                         bc)
   buyFireRateBtn.disabled    = state.money < fc
   buyBulletDmgBtn.disabled   = state.money < dc
@@ -634,72 +663,84 @@ function drawCastle() {
   ctx.fillStyle = '#1e1050'
   ctx.fillRect(0, cY, cW, CFG.CASTLE_H)
 
+  // Brick grid
   ctx.strokeStyle = '#2d1a70'
-  ctx.lineWidth = 1
-  for (let row = 0; row < 3; row++) {
-    const rowY = cY + 6 + row * 17
-    const off  = row % 2 === 0 ? 0 : 26
-    for (let bx = -off; bx < cW; bx += 52) ctx.strokeRect(bx + 1, rowY, 50, 15)
+  ctx.lineWidth   = 1
+  for (let row = 0; row < CFG.CASTLE_GRID_ROWS; row++) {
+    const rowY = cY + CFG.CASTLE_GRID_ROW_Y + row * CFG.CASTLE_GRID_ROW_H
+    const off  = row % 2 === 0 ? 0 : CFG.CASTLE_GRID_ODD_OFFSET
+    for (let bx = -off; bx < cW; bx += CFG.CASTLE_GRID_PERIOD)
+      ctx.strokeRect(bx + 1, rowY, CFG.CASTLE_GRID_BLOCK_W, CFG.CASTLE_GRID_BLOCK_H)
   }
 
+  // Main-wall crenellations
   ctx.fillStyle = '#251560'
-  const battW = 28, battGap = 18, period = battW + battGap
-  for (let bx = 4; bx < cW - battW; bx += period)
-    ctx.fillRect(bx, cY - CFG.CASTLE_BATT_H, battW, CFG.CASTLE_BATT_H)
+  const period  = CFG.CASTLE_BATT_W + CFG.CASTLE_BATT_GAP
+  for (let bx = CFG.CASTLE_BATT_X_START; bx < cW - CFG.CASTLE_BATT_W; bx += period)
+    ctx.fillRect(bx, cY - CFG.CASTLE_BATT_H, CFG.CASTLE_BATT_W, CFG.CASTLE_BATT_H)
 
-  const tW = 54, tH = CFG.CASTLE_H + 28
+  // Corner towers
+  const tW = CFG.CASTLE_TOWER_W, tH = CFG.CASTLE_H + CFG.CASTLE_TOWER_EXTRA_H
   ctx.fillStyle = '#180e45'
-  ctx.fillRect(0,       cY - 28, tW, tH)
-  ctx.fillRect(cW - tW, cY - 28, tW, tH)
+  ctx.fillRect(0,       cY - CFG.CASTLE_TOWER_EXTRA_H, tW, tH)
+  ctx.fillRect(cW - tW, cY - CFG.CASTLE_TOWER_EXTRA_H, tW, tH)
 
+  // Tower crenellations
   ctx.fillStyle = '#251560'
-  const tBatt = 12, tGap = 8
-  for (let tx2 = 4; tx2 < tW - tBatt; tx2 += tBatt + tGap) {
-    ctx.fillRect(tx2,          cY - 28 - 12, tBatt, 12)
-    ctx.fillRect(cW - tW + tx2, cY - 28 - 12, tBatt, 12)
+  const tPeriod = CFG.CASTLE_TOWER_BATT_W + CFG.CASTLE_TOWER_BATT_GAP
+  for (let tx2 = CFG.CASTLE_TOWER_BATT_X_START; tx2 < tW - CFG.CASTLE_TOWER_BATT_W; tx2 += tPeriod) {
+    ctx.fillRect(tx2,          cY - CFG.CASTLE_TOWER_EXTRA_H - CFG.CASTLE_TOWER_BATT_H, CFG.CASTLE_TOWER_BATT_W, CFG.CASTLE_TOWER_BATT_H)
+    ctx.fillRect(cW - tW + tx2, cY - CFG.CASTLE_TOWER_EXTRA_H - CFG.CASTLE_TOWER_BATT_H, CFG.CASTLE_TOWER_BATT_W, CFG.CASTLE_TOWER_BATT_H)
   }
 
+  // Tower windows
   ctx.fillStyle = '#7c3aed44'
-  const winW = 10, winH = 22
-  ctx.fillRect(tW / 2 - winW / 2,           cY - 14, winW, winH)
-  ctx.fillRect(cW - tW + tW / 2 - winW / 2, cY - 14, winW, winH)
+  const wW = CFG.CASTLE_WINDOW_W, wH = CFG.CASTLE_WINDOW_H
+  ctx.fillRect(tW / 2 - wW / 2,           cY - CFG.CASTLE_WINDOW_Y_OFFSET, wW, wH)
+  ctx.fillRect(cW - tW + tW / 2 - wW / 2, cY - CFG.CASTLE_WINDOW_Y_OFFSET, wW, wH)
 
-  const gateW = 60, gX = cW / 2 - gateW / 2
+  // Gate
+  const gateW = CFG.CASTLE_GATE_W, gX = cW / 2 - gateW / 2
   ctx.fillStyle = '#0d0830'
-  ctx.fillRect(gX, cY, gateW, 28)
+  ctx.fillRect(gX, cY, gateW, CFG.CASTLE_GATE_H)
   ctx.beginPath()
   ctx.arc(cW / 2, cY, gateW / 2, Math.PI, 0)
   ctx.fill()
 
   // Castle HP bar
   const hpPct  = state.castle.hp / CFG.CASTLE_MAX_HP
-  const barX   = tW + 12, barW = cW - tW * 2 - 24
-  const barY   = cY + 6,  barH = 10
+  const barX   = tW + CFG.CASTLE_HP_BAR_INSET
+  const barW   = cW - tW * 2 - CFG.CASTLE_HP_BAR_INSET * 2
+  const barY   = cY + CFG.CASTLE_HP_BAR_Y_OFFSET
+  const barH   = CFG.CASTLE_HP_BAR_H
   ctx.fillStyle = '#0a0624'
   ctx.fillRect(barX, barY, barW, barH)
-  const barColor = hpPct > 0.5 ? '#7c3aed' : hpPct > 0.25 ? '#f97316' : '#ef4444'
+  const barColor = hpPct > CFG.HUD_HP_MID ? '#7c3aed' : hpPct > CFG.HUD_HP_LOW ? '#f97316' : '#ef4444'
   ctx.fillStyle = barColor
   ctx.fillRect(barX, barY, barW * hpPct, barH)
-  if (hpPct <= 0.25) {
+  if (hpPct <= CFG.HUD_HP_LOW) {
     ctx.save()
-    ctx.shadowBlur  = 10 + 6 * Math.sin(state.time * 8)
+    ctx.shadowBlur  = CFG.ANIM_CASTLE_HP_PULSE_SHADOW_BASE + CFG.ANIM_CASTLE_HP_PULSE_SHADOW_AMP * Math.sin(state.time * CFG.ANIM_CASTLE_HP_PULSE_FREQ)
     ctx.shadowColor = '#ef4444'
     ctx.fillRect(barX, barY, barW * hpPct, barH)
     ctx.restore()
   }
 
   ctx.fillStyle    = '#a78bfa'
-  ctx.font         = 'bold 13px Inter, system-ui, sans-serif'
+  ctx.font         = `bold ${CFG.CASTLE_HP_LABEL_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign    = 'center'
-  ctx.fillText(`🏰 KOZMİK KALE  ${Math.ceil(state.castle.hp)} / ${CFG.CASTLE_MAX_HP}`, cW / 2, cY + 26)
+  ctx.fillText(`🏰 KOZMİK KALE  ${Math.ceil(state.castle.hp)} / ${CFG.CASTLE_MAX_HP}`, cW / 2, cY + CFG.CASTLE_HP_LABEL_Y_OFFSET)
   ctx.textAlign = 'left'
 }
 
 function drawCrystalBar() {
   const cost   = getNextUpgradeCost()
   const fill   = Math.min(1, state.crystals / cost)
-  const barH   = 14, barY = 3, margin = 4
-  const barX   = margin, barW = world.w - margin * 2
+  const barH   = CFG.CRYSTAL_BAR_H
+  const barY   = CFG.CRYSTAL_BAR_Y
+  const margin = CFG.CRYSTAL_BAR_MARGIN
+  const barX   = margin
+  const barW   = world.w - margin * 2
 
   ctx.fillStyle = '#0a1628'
   ctx.fillRect(barX, barY, barW, barH)
@@ -710,9 +751,9 @@ function drawCrystalBar() {
     grad.addColorStop(0.6, '#0ea5e9')
     grad.addColorStop(1, '#22d3ee')
     ctx.fillStyle = grad
-    if (fill >= 0.8) {
+    if (fill >= CFG.CRYSTAL_BAR_PULSE_THRESHOLD) {
       ctx.save()
-      ctx.shadowBlur  = 8 + 5 * Math.sin(state.time * 10)
+      ctx.shadowBlur  = CFG.CRYSTAL_BAR_PULSE_SHADOW_BASE + CFG.CRYSTAL_BAR_PULSE_SHADOW_AMP * Math.sin(state.time * CFG.CRYSTAL_BAR_PULSE_FREQ)
       ctx.shadowColor = '#22d3ee'
       ctx.fillRect(barX, barY, barW * fill, barH)
       ctx.restore()
@@ -726,7 +767,7 @@ function drawCrystalBar() {
   ctx.strokeRect(barX, barY, barW, barH)
 
   // Tick marks only when cost is small enough to be readable
-  if (cost <= 15) {
+  if (cost <= CFG.CRYSTAL_BAR_TICK_MAX_COST) {
     ctx.strokeStyle = '#0f172a'
     for (let i = 1; i < cost; i++) {
       const tx2 = barX + (barW / cost) * i
@@ -734,7 +775,7 @@ function drawCrystalBar() {
     }
   }
 
-  ctx.fillStyle    = fill >= 0.8 ? '#ffffff' : '#94a3b8'
+  ctx.fillStyle    = fill >= CFG.CRYSTAL_BAR_PULSE_THRESHOLD ? '#ffffff' : '#94a3b8'
   ctx.font         = `bold ${barH - 4}px Inter, system-ui, sans-serif`
   ctx.textAlign    = 'center'
   ctx.textBaseline = 'middle'
@@ -743,19 +784,60 @@ function drawCrystalBar() {
   ctx.textAlign    = 'left'
 }
 
+function drawAmmoBar() {
+  const maxAmmo = getMaxAmmo()
+  const fill    = state.ammo / maxAmmo
+  const barH    = CFG.AMMO_BAR_H
+  const barY    = CFG.CRYSTAL_BAR_Y + CFG.CRYSTAL_BAR_H + CFG.AMMO_BAR_TOP_MARGIN
+  const margin  = CFG.CRYSTAL_BAR_MARGIN
+  const barX    = margin
+  const barW    = world.w - margin * 2
+
+  ctx.fillStyle = '#0a1628'
+  ctx.fillRect(barX, barY, barW, barH)
+
+  if (fill > 0) {
+    const isLow    = fill <= CFG.AMMO_LOW_THRESHOLD
+    const barColor = fill > CFG.HUD_HP_MID ? '#22c55e' : fill > CFG.AMMO_LOW_THRESHOLD ? '#f97316' : '#ef4444'
+    if (isLow) {
+      ctx.save()
+      ctx.shadowBlur  = CFG.AMMO_BAR_PULSE_SHADOW_BASE + CFG.AMMO_BAR_PULSE_SHADOW_AMP * Math.sin(state.time * CFG.AMMO_BAR_PULSE_FREQ)
+      ctx.shadowColor = '#ef4444'
+      ctx.fillStyle   = barColor
+      ctx.fillRect(barX, barY, barW * fill, barH)
+      ctx.restore()
+    } else {
+      ctx.fillStyle = barColor
+      ctx.fillRect(barX, barY, barW * fill, barH)
+    }
+  }
+
+  ctx.strokeStyle = '#1e3a5f'
+  ctx.lineWidth   = 1
+  ctx.strokeRect(barX, barY, barW, barH)
+
+  ctx.fillStyle    = fill <= CFG.AMMO_LOW_THRESHOLD ? '#ef4444' : '#94a3b8'
+  ctx.font         = `bold ${barH - 4}px Inter, system-ui, sans-serif`
+  ctx.textAlign    = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(`🔫 ${Math.floor(state.ammo)} / ${maxAmmo}  —  MERMİ`, world.w / 2, barY + barH / 2)
+  ctx.textBaseline = 'alphabetic'
+  ctx.textAlign    = 'left'
+}
+
 // Draw a rounded button on canvas; returns {x,y,w,h} hit rect
 function drawCanvasButton(cx, cy, w, h, label, bg, textColor, fontSize) {
   const x = cx - w / 2, y = cy - h / 2
   ctx.save()
-  ctx.shadowBlur  = 14
+  ctx.shadowBlur  = CFG.CANVAS_BTN_SHADOW_BLUR
   ctx.shadowColor = bg
   ctx.fillStyle   = bg
   ctx.beginPath()
-  ctx.roundRect(x, y, w, h, 10)
+  ctx.roundRect(x, y, w, h, CFG.CANVAS_BTN_RADIUS)
   ctx.fill()
   ctx.restore()
   ctx.fillStyle    = textColor
-  ctx.font         = `bold ${fontSize || 22}px Inter, system-ui, sans-serif`
+  ctx.font         = `bold ${fontSize || CFG.CANVAS_BTN_DEFAULT_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign    = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(label, cx, cy)
@@ -773,28 +855,33 @@ function drawTurret() {
 
   // HP bar below turret body
   const hpPct  = t.hp / CFG.TURRET_MAX_HP
-  const hpBarW = tw + 12
+  const hpBarW = tw + CFG.TURRET_HP_BAR_EXTRA_W
   const hpBarX = t.x - hpBarW / 2
-  const hpBarY = t.y + th / 2 + 5
+  const hpBarY = t.y + th / 2 + CFG.TURRET_HP_BAR_Y_GAP
   ctx.fillStyle = '#1e293b'
-  ctx.fillRect(hpBarX, hpBarY, hpBarW, 8)
-  ctx.fillStyle = hpPct > 0.5 ? '#22c55e' : hpPct > 0.25 ? '#f97316' : '#ef4444'
-  ctx.fillRect(hpBarX, hpBarY, hpBarW * hpPct, 8)
+  ctx.fillRect(hpBarX, hpBarY, hpBarW, CFG.TURRET_HP_BAR_H)
+  ctx.fillStyle = hpPct > CFG.HUD_HP_MID ? '#22c55e' : hpPct > CFG.HUD_HP_LOW ? '#f97316' : '#ef4444'
+  ctx.fillRect(hpBarX, hpBarY, hpBarW * hpPct, CFG.TURRET_HP_BAR_H)
 
   // Shield glow
   if (state.inRunUpgrades.shield > 0) {
     ctx.save()
     ctx.strokeStyle = '#60a5fa'
-    ctx.lineWidth   = 3
-    ctx.shadowBlur  = 14
+    ctx.lineWidth   = CFG.TURRET_SHIELD_LINE_W
+    ctx.shadowBlur  = CFG.TURRET_SHIELD_SHADOW_BLUR
     ctx.shadowColor = '#60a5fa'
-    ctx.strokeRect(t.x - tw / 2 - 6, t.y - th / 2 - 6, tw + 12, th + 12)
+    ctx.strokeRect(
+      t.x - tw / 2 - CFG.TURRET_SHIELD_INSET,
+      t.y - th / 2 - CFG.TURRET_SHIELD_INSET,
+      tw + CFG.TURRET_SHIELD_INSET * 2,
+      th + CFG.TURRET_SHIELD_INSET * 2
+    )
     ctx.restore()
   }
 
   // Barrel
   ctx.save()
-  ctx.shadowBlur  = 8
+  ctx.shadowBlur  = CFG.TURRET_BARREL_SHADOW_BLUR
   ctx.shadowColor = '#38bdf8'
   ctx.fillStyle   = '#38bdf8'
   ctx.fillRect(t.x - bw / 2, t.y - th / 2 - bh, bw, bh)
@@ -803,15 +890,16 @@ function drawTurret() {
   // Base body
   ctx.fillStyle = state.inRunUpgrades.shield > 0 ? '#93c5fd' : '#7dd3fc'
   ctx.fillRect(t.x - tw / 2, t.y - th / 2, tw, th)
+  // Accent stripe
   ctx.fillStyle = '#0ea5e9'
-  ctx.fillRect(t.x - tw / 2, t.y, tw, 4)
+  ctx.fillRect(t.x - tw / 2, t.y, tw, CFG.TURRET_ACCENT_STRIPE_H)
 
   if (state.inRunUpgrades.shield > 0) {
     ctx.fillStyle    = '#fff'
-    ctx.font         = 'bold 11px Inter, system-ui, sans-serif'
+    ctx.font         = `bold ${CFG.TURRET_SHIELD_FONT}px Inter, system-ui, sans-serif`
     ctx.textAlign    = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(`🛡${state.inRunUpgrades.shield}`, t.x, t.y - th / 2 + th / 2)
+    ctx.fillText(`🛡${state.inRunUpgrades.shield}`, t.x, t.y)
     ctx.textBaseline = 'alphabetic'
     ctx.textAlign    = 'left'
   }
@@ -823,14 +911,14 @@ function drawEnemies() {
 
     if (e.breaching) {
       ctx.save()
-      ctx.shadowBlur  = 14 + 6 * Math.sin(state.time * 12)
+      ctx.shadowBlur  = CFG.ANIM_BREACH_PULSE_BASE + CFG.ANIM_BREACH_PULSE_AMP * Math.sin(state.time * CFG.ANIM_BREACH_PULSE_FREQ)
       ctx.shadowColor = '#ff6600'
       ctx.fillStyle   = '#ff4422'
       ctx.fillRect(e.x - e.r, e.y - e.r, e.r * 2, e.r * 2)
       ctx.restore()
     } else if (e.isElite) {
       ctx.save()
-      ctx.shadowBlur  = 10 + 4 * Math.sin(state.time * 6)
+      ctx.shadowBlur  = CFG.ANIM_ELITE_PULSE_BASE + CFG.ANIM_ELITE_PULSE_AMP * Math.sin(state.time * CFG.ANIM_ELITE_PULSE_FREQ)
       ctx.shadowColor = e.color
       ctx.fillStyle   = e.color
       ctx.fillRect(e.x - e.r, e.y - e.r, e.r * 2, e.r * 2)
@@ -848,13 +936,13 @@ function drawEnemies() {
     }
 
     // HP bar above every enemy
-    const barW = e.r * 2, barH = 4
-    const barX = e.x - e.r, barY = e.y - e.r - barH - 2
+    const barW = e.r * 2, barH = CFG.ENEMY_HP_BAR_H
+    const barX = e.x - e.r, barY = e.y - e.r - barH - CFG.ENEMY_HP_BAR_GAP
     ctx.fillStyle = '#1e293b'
     ctx.fillRect(barX, barY, barW, barH)
     ctx.fillStyle = e.isElite
-      ? (hpPct > 0.5 ? '#c084fc' : hpPct > 0.25 ? '#f97316' : '#ef4444')
-      : (hpPct > 0.5 ? '#22c55e' : hpPct > 0.25 ? '#f97316' : '#ef4444')
+      ? (hpPct > CFG.HUD_HP_MID ? '#c084fc' : hpPct > CFG.HUD_HP_LOW ? '#f97316' : '#ef4444')
+      : (hpPct > CFG.HUD_HP_MID ? '#22c55e' : hpPct > CFG.HUD_HP_LOW ? '#f97316' : '#ef4444')
     ctx.fillRect(barX, barY, barW * hpPct, barH)
   }
 }
@@ -872,8 +960,8 @@ function drawMenuScreen() {
   drawBackground()
 
   // Deterministic star field
-  ctx.fillStyle = 'rgba(255,255,255,0.5)'
-  for (let i = 0; i < 100; i++) {
+  ctx.fillStyle = `rgba(255,255,255,${CFG.STARS_ALPHA})`
+  for (let i = 0; i < CFG.STARS_COUNT; i++) {
     const sx = (i * 137.5) % world.w
     const sy = (i * 91.3)  % world.h
     const r  = 0.5 + (i % 3) * 0.5
@@ -881,43 +969,43 @@ function drawMenuScreen() {
   }
 
   // Title — two lines for portrait
-  const titleY = Math.round(world.h * 0.20)
+  const titleY = Math.round(world.h * CFG.MENU_TITLE_Y_FRAC)
   ctx.save()
   ctx.shadowBlur  = 28
   ctx.shadowColor = '#7c3aed'
   ctx.fillStyle   = '#c4b5fd'
   ctx.textAlign   = 'center'
-  ctx.font        = 'bold 56px Inter, system-ui, sans-serif'
+  ctx.font        = `bold ${CFG.MENU_TITLE_FONT1}px Inter, system-ui, sans-serif`
   ctx.fillText('TOPÇU', world.w / 2, titleY)
-  ctx.font        = 'bold 50px Inter, system-ui, sans-serif'
-  ctx.fillText('SURVIVORS', world.w / 2, titleY + 62)
+  ctx.font        = `bold ${CFG.MENU_TITLE_FONT2}px Inter, system-ui, sans-serif`
+  ctx.fillText('SURVIVORS', world.w / 2, titleY + CFG.MENU_TITLE_LINE_GAP)
   ctx.restore()
 
   ctx.fillStyle = '#94a3b8'
-  ctx.font      = '19px Inter, system-ui, sans-serif'
+  ctx.font      = `${CFG.MENU_SUB_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign = 'center'
-  ctx.fillText('Kaleyi savunun. Düşmanları durdurun.', world.w / 2, Math.round(world.h * 0.34))
+  ctx.fillText('Kaleyi savunun. Düşmanları durdurun.', world.w / 2, Math.round(world.h * CFG.MENU_SUB_Y_FRAC))
 
   // Stats — two compact lines
   ctx.fillStyle = '#64748b'
-  ctx.font      = '16px Inter, system-ui, sans-serif'
+  ctx.font      = `${CFG.MENU_STATS_FONT}px Inter, system-ui, sans-serif`
   ctx.fillText(
     `💰 Altın: ${state.money}   🔫 Mermi: Sv.${state.upgrades.bulletCount}   🎯 Delici: Sv.${state.upgrades.pierce}`,
-    world.w / 2, Math.round(world.h * 0.39))
+    world.w / 2, Math.round(world.h * CFG.MENU_STATS1_Y_FRAC))
   ctx.fillText(
     `🔥 Atış: Sv.${state.upgrades.fireRate}   💥 Hasar: Sv.${state.upgrades.bulletDmg}`,
-    world.w / 2, Math.round(world.h * 0.43))
+    world.w / 2, Math.round(world.h * CFG.MENU_STATS2_Y_FRAC))
 
   // Buttons — store hit rects for click handler
-  const playY = Math.round(world.h * 0.54)
-  const shopY = Math.round(world.h * 0.64)
-  canvasBtns.menuPlay = drawCanvasButton(world.w / 2, playY, 230, 66, '▶  OYNA', '#16a34a', '#bbf7d0', 24)
-  canvasBtns.menuShop = drawCanvasButton(world.w / 2, shopY, 230, 58, '⚙  YÜKSELTMELER', '#1d4ed8', '#bfdbfe', 20)
+  canvasBtns.menuPlay = drawCanvasButton(world.w / 2, Math.round(world.h * CFG.MENU_PLAY_Y_FRAC),
+    CFG.MENU_PLAY_BTN_W, CFG.MENU_PLAY_BTN_H, '▶  OYNA', '#16a34a', '#bbf7d0', CFG.MENU_PLAY_BTN_FONT)
+  canvasBtns.menuShop = drawCanvasButton(world.w / 2, Math.round(world.h * CFG.MENU_SHOP_Y_FRAC),
+    CFG.MENU_SHOP_BTN_W, CFG.MENU_SHOP_BTN_H, '⚙  YÜKSELTMELER', '#1d4ed8', '#bfdbfe', CFG.MENU_SHOP_BTN_FONT)
 
   ctx.fillStyle = '#475569'
-  ctx.font      = '14px Inter, system-ui, sans-serif'
-  ctx.fillText('Bas + Sürükle ile topçuyu hareket ettir', world.w / 2, Math.round(world.h * 0.74))
-  ctx.fillText('Otomatik ateş eder', world.w / 2, Math.round(world.h * 0.77))
+  ctx.font      = `${CFG.MENU_TIP_FONT}px Inter, system-ui, sans-serif`
+  ctx.fillText('Bas + Sürükle ile topçuyu hareket ettir', world.w / 2, Math.round(world.h * CFG.MENU_TIP1_Y_FRAC))
+  ctx.fillText('Basılı tut → ateş et  ·  Bırak → durur', world.w / 2, Math.round(world.h * CFG.MENU_TIP2_Y_FRAC))
 
   ctx.textAlign = 'left'
 }
@@ -929,28 +1017,28 @@ function drawCountdownScreen() {
   const midW = world.w / 2
 
   ctx.fillStyle = '#e2e8f0'
-  ctx.font      = 'bold 22px Inter, system-ui, sans-serif'
+  ctx.font      = `bold ${CFG.COUNTDOWN_HEADER_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign = 'center'
-  ctx.fillText('🎯 Düşmanları topla, kaleyi koru!', midW, Math.round(world.h * 0.24))
+  ctx.fillText('🎯 Düşmanları topla, kaleyi koru!', midW, Math.round(world.h * CFG.COUNTDOWN_TIP_Y_FRAC))
 
   ctx.fillStyle = '#94a3b8'
-  ctx.font      = '17px Inter, system-ui, sans-serif'
-  ctx.fillText('Bas + Sürükle → topçuyu hareket ettir', midW, Math.round(world.h * 0.29))
-  ctx.fillText('Kristal topla → Yükseltme', midW, Math.round(world.h * 0.33))
-  ctx.fillText('Altın topla → Mağaza', midW, Math.round(world.h * 0.36))
+  ctx.font      = `${CFG.COUNTDOWN_TIP_FONT}px Inter, system-ui, sans-serif`
+  ctx.fillText('Bas + Sürükle → topçuyu hareket ettir', midW, Math.round(world.h * CFG.COUNTDOWN_TIP2_Y_FRAC))
+  ctx.fillText('Basılı tut → ateş et, bırak → durur', midW, Math.round(world.h * CFG.COUNTDOWN_TIP3_Y_FRAC))
+  ctx.fillText('Kristal topla → Yükseltme  ·  Altın topla → Mağaza', midW, Math.round(world.h * CFG.COUNTDOWN_TIP4_Y_FRAC))
 
   // Animated countdown number
   const tick  = Math.ceil(state.countdownTimer)
   const frac  = state.countdownTimer - Math.floor(state.countdownTimer)
-  const scale = 1 + (1 - frac) * 0.55
+  const scale = 1 + (1 - frac) * CFG.COUNTDOWN_SCALE_AMP
 
   ctx.save()
-  ctx.translate(midW, Math.round(world.h * 0.52))
+  ctx.translate(midW, Math.round(world.h * CFG.COUNTDOWN_NUM_Y_FRAC))
   ctx.scale(scale, scale)
-  ctx.shadowBlur  = 44
+  ctx.shadowBlur  = CFG.COUNTDOWN_SHADOW_BLUR
   ctx.shadowColor = tick > 1 ? '#f97316' : '#22c55e'
   ctx.fillStyle   = tick > 1 ? '#fb923c' : '#4ade80'
-  ctx.font        = 'bold 110px Inter, system-ui, sans-serif'
+  ctx.font        = `bold ${CFG.COUNTDOWN_NUM_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign   = 'center'
   ctx.textBaseline= 'middle'
   ctx.fillText(tick <= 0 ? 'GİT!' : String(tick), 0, 0)
@@ -964,30 +1052,30 @@ function drawEndScreen() {
   drawBackground()
 
   // Translucent overlay
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'
+  ctx.fillStyle = `rgba(0,0,0,${CFG.END_OVERLAY_ALPHA})`
   ctx.fillRect(0, 0, world.w, world.h)
 
   const midW = world.w / 2
   const lost = state.castle.hp <= 0
 
   ctx.save()
-  ctx.shadowBlur  = 28
+  ctx.shadowBlur  = CFG.END_SHADOW_BLUR
   ctx.shadowColor = lost ? '#ef4444' : '#22c55e'
   ctx.fillStyle   = lost ? '#f87171' : '#4ade80'
-  ctx.font        = 'bold 52px Inter, system-ui, sans-serif'
+  ctx.font        = `bold ${CFG.END_TITLE_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign   = 'center'
-  ctx.fillText(lost ? '🏚 KALE DÜŞTÜ' : '⚔ TUR BİTTİ', midW, Math.round(world.h * 0.33))
+  ctx.fillText(lost ? '🏚 KALE DÜŞTÜ' : '⚔ TUR BİTTİ', midW, Math.round(world.h * CFG.END_TITLE_Y_FRAC))
   ctx.restore()
 
   ctx.fillStyle = '#e2e8f0'
-  ctx.font      = '26px Inter, system-ui, sans-serif'
+  ctx.font      = `${CFG.END_STATS_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign = 'center'
-  ctx.fillText(`Öldürülen: ${state.runKills} düşman`, midW, Math.round(world.h * 0.42))
-  ctx.fillText(`Toplanan: 💰 ${state.money} altın`, midW,   Math.round(world.h * 0.48))
+  ctx.fillText(`Öldürülen: ${state.runKills} düşman`, midW, Math.round(world.h * CFG.END_KILLS_Y_FRAC))
+  ctx.fillText(`Toplanan: 💰 ${state.money} altın`,   midW, Math.round(world.h * CFG.END_MONEY_Y_FRAC))
 
-  const btnY = Math.round(world.h * 0.60)
-  canvasBtns.endRestart  = drawCanvasButton(midW - 108, btnY, 190, 60, '🔄 TEKRAR',   '#16a34a', '#bbf7d0', 20)
-  canvasBtns.endMainMenu = drawCanvasButton(midW + 108, btnY, 190, 60, '🏠 ANA MENÜ', '#1d4ed8', '#bfdbfe', 20)
+  const btnY = Math.round(world.h * CFG.END_BTN_Y_FRAC)
+  canvasBtns.endRestart  = drawCanvasButton(midW - CFG.END_BTN_X_OFFSET, btnY, CFG.END_BTN_W, CFG.END_BTN_H, '🔄 TEKRAR',   '#16a34a', '#bbf7d0', CFG.END_BTN_FONT)
+  canvasBtns.endMainMenu = drawCanvasButton(midW + CFG.END_BTN_X_OFFSET, btnY, CFG.END_BTN_W, CFG.END_BTN_H, '🏠 ANA MENÜ', '#1d4ed8', '#bfdbfe', CFG.END_BTN_FONT)
 
   ctx.textAlign = 'left'
 }
@@ -997,29 +1085,29 @@ function drawPlayingScreen() {
   drawCastle()
 
   // Danger-zone tint
-  const tBottom = state.turret.y + CFG.TURRET_HEIGHT / 2 + 4
-  ctx.fillStyle = 'rgba(220, 38, 38, 0.06)'
-  ctx.fillRect(0, tBottom, world.w, BREACH_Y - tBottom)
+  const dangerTop = state.turret.y + CFG.TURRET_HEIGHT / 2 + CFG.BREACH_DANGER_GAP
+  ctx.fillStyle = `rgba(220, 38, 38, ${CFG.BREACH_DANGER_ALPHA})`
+  ctx.fillRect(0, dangerTop, world.w, BREACH_Y - dangerTop)
 
   // Breach line
   ctx.save()
   ctx.strokeStyle = '#dc2626'
-  ctx.lineWidth   = 2
-  ctx.shadowBlur  = 10
+  ctx.lineWidth   = CFG.BREACH_LINE_W
+  ctx.shadowBlur  = CFG.BREACH_LINE_SHADOW_BLUR
   ctx.shadowColor = '#ef4444'
-  ctx.setLineDash([14, 7])
+  ctx.setLineDash([CFG.BREACH_DASH_ON, CFG.BREACH_DASH_OFF])
   ctx.beginPath(); ctx.moveTo(0, BREACH_Y); ctx.lineTo(world.w, BREACH_Y); ctx.stroke()
   ctx.restore()
 
   ctx.fillStyle = 'rgba(220, 38, 38, 0.8)'
-  ctx.font      = 'bold 11px Inter, system-ui, sans-serif'
+  ctx.font      = `bold ${CFG.BREACH_LABEL_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign = 'left'
-  ctx.fillText('⚠ KALEYİ SAVUN', 8, BREACH_Y - 4)
+  ctx.fillText('⚠ KALEYİ SAVUN', CFG.BREACH_LABEL_X, BREACH_Y - CFG.BREACH_LABEL_Y)
 
   ctx.strokeStyle = '#334155'
-  ctx.lineWidth   = 2
+  ctx.lineWidth   = CFG.CANVAS_BORDER_W
   ctx.setLineDash([])
-  ctx.strokeRect(1, 1, world.w - 2, world.h - 2)
+  ctx.strokeRect(CFG.CANVAS_BORDER_INSET, CFG.CANVAS_BORDER_INSET, world.w - CFG.CANVAS_BORDER_INSET * 2, world.h - CFG.CANVAS_BORDER_INSET * 2)
 
   drawEnemies()
   drawTurret()
@@ -1027,7 +1115,7 @@ function drawPlayingScreen() {
   // Bullets
   for (const b of state.bullets) {
     ctx.save()
-    ctx.shadowBlur  = 10
+    ctx.shadowBlur  = CFG.BULLET_SHADOW_BLUR
     ctx.shadowColor = '#fbbf24'
     ctx.fillStyle   = '#fde68a'
     ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill()
@@ -1041,8 +1129,10 @@ function drawPlayingScreen() {
     ctx.shadowColor = '#7dd3fc'
     ctx.fillStyle   = '#7dd3fc'
     ctx.beginPath()
-    ctx.moveTo(c.x, c.y - 9); ctx.lineTo(c.x + 7, c.y)
-    ctx.lineTo(c.x, c.y + 9); ctx.lineTo(c.x - 7, c.y)
+    ctx.moveTo(c.x,                                      c.y - CFG.CRYSTAL_VISUAL_HALF_H)
+    ctx.lineTo(c.x + CFG.CRYSTAL_VISUAL_HALF_W,         c.y)
+    ctx.lineTo(c.x,                                      c.y + CFG.CRYSTAL_VISUAL_HALF_H)
+    ctx.lineTo(c.x - CFG.CRYSTAL_VISUAL_HALF_W,         c.y)
     ctx.closePath(); ctx.fill()
     ctx.restore()
   }
@@ -1082,8 +1172,9 @@ function drawPlayingScreen() {
     ctx.restore()
   }
 
-  // Crystal bar on top
+  // Crystal and ammo bars on top
   drawCrystalBar()
+  drawAmmoBar()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1105,7 +1196,7 @@ function draw() {
 let last = performance.now()
 
 function loop(now) {
-  const dt = Math.min(0.033, (now - last) / 1000)
+  const dt = Math.min(CFG.LOOP_DT_CAP, (now - last) / 1000)
   last = now
 
   if (state.screen === SCREEN.MENU || state.screen === SCREEN.END) {
@@ -1124,12 +1215,17 @@ function loop(now) {
     updateTurret(dt)
     updateTurretHP(dt)
 
-    // Auto-fire (multi-barrel)
+    // Fire timer always counts down; shots only fire when holding & have ammo
     state.fireTimer -= dt
     if (state.fireTimer <= 0) {
-      fireBullets()
       state.fireTimer = 1 / getFireRate()
+      if ((mouseDown || keys.shoot) && state.ammo >= CFG.AMMO_COST_PER_VOLLEY) {
+        fireBullets()
+        state.ammo        -= CFG.AMMO_COST_PER_VOLLEY
+        state.lastFireTime = state.time
+      }
     }
+    updateAmmo(dt)
 
     // Enemy spawning
     const targetInterval = Math.max(
@@ -1187,13 +1283,15 @@ function handleCanvasTap(cx, cy) {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft'  || e.key.toLowerCase() === 'a') keys.left  = true
   if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') keys.right = true
+  if (e.key === ' ') { e.preventDefault(); keys.shoot = true }
 })
 document.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowLeft'  || e.key.toLowerCase() === 'a') keys.left  = false
   if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') keys.right = false
+  if (e.key === ' ') keys.shoot = false
 })
 
-// ── Mouse — only move turret while button is held ─────────────────────────────
+// ── Mouse — only move & shoot while button is held ────────────────────────────
 canvas.addEventListener('mousedown', (e) => {
   mouseDown = true
   const { cx, cy } = canvasXY(e.clientX, e.clientY)
@@ -1224,8 +1322,8 @@ canvas.addEventListener('touchmove', (e) => {
   }
 }, { passive: false })
 
-canvas.addEventListener('touchend',   (e) => { e.preventDefault(); if (e.touches.length === 0) mouseDown = false }, { passive: false })
-canvas.addEventListener('touchcancel',()  => { mouseDown = false })
+canvas.addEventListener('touchend',    (e) => { e.preventDefault(); if (e.touches.length === 0) mouseDown = false }, { passive: false })
+canvas.addEventListener('touchcancel', ()  => { mouseDown = false })
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Permanent shop (HTML overlay, accessible from main menu)
