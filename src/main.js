@@ -445,13 +445,13 @@ function spawnEnemy() {
   // Color: elite=purple, sprinter=cyan, tier-normal shifts red→orange→amber
   let color
   if (isElite) {
-    color = `hsl(${Math.round(270 + (Math.random() - 0.5) * 30)},${Math.round(80 + Math.random() * 20)}%,${Math.round(45 + Math.random() * 10)}%)`
+    color = `hsl(${Math.round(CFG.ENEMY_COLOR_ELITE_HUE + (Math.random() - 0.5) * CFG.ENEMY_COLOR_ELITE_HUE_SPREAD)},${Math.round(CFG.ENEMY_COLOR_ELITE_SAT_BASE + Math.random() * CFG.ENEMY_COLOR_ELITE_SAT_SPREAD)}%,${Math.round(CFG.ENEMY_COLOR_ELITE_LIGHT_BASE + Math.random() * CFG.ENEMY_COLOR_ELITE_LIGHT_SPREAD)}%)`
   } else if (isSprinter) {
-    color = `hsl(${Math.round(185 + (Math.random() - 0.5) * 20)},${Math.round(80 + Math.random() * 15)}%,${Math.round(48 + Math.random() * 10)}%)`
+    color = `hsl(${Math.round(CFG.ENEMY_COLOR_SPRINTER_HUE + (Math.random() - 0.5) * CFG.ENEMY_COLOR_SPRINTER_HUE_SPREAD)},${Math.round(CFG.ENEMY_COLOR_SPRINTER_SAT_BASE + Math.random() * CFG.ENEMY_COLOR_SPRINTER_SAT_SPREAD)}%,${Math.round(CFG.ENEMY_COLOR_SPRINTER_LIGHT_BASE + Math.random() * CFG.ENEMY_COLOR_SPRINTER_LIGHT_SPREAD)}%)`
   } else {
-    // Tier 0=355(red), 1=15(orange-red), 2=35(orange), 3+=50(amber)
-    const tierHue = (355 + state.enemyTier * 20) % 360
-    color = `hsl(${Math.round(tierHue + (Math.random() - 0.5) * 16)},${Math.round(70 + Math.random() * 20)}%,${Math.round(45 + Math.random() * 10)}%)`
+    // Tier 0=red, shifts toward orange/amber per tier via ENEMY_COLOR_TIER_HUE_STEP
+    const tierHue = (CFG.ENEMY_COLOR_NORMAL_HUE_BASE + state.enemyTier * CFG.ENEMY_COLOR_TIER_HUE_STEP) % 360
+    color = `hsl(${Math.round(tierHue + (Math.random() - 0.5) * CFG.ENEMY_COLOR_NORMAL_HUE_SPREAD)},${Math.round(CFG.ENEMY_COLOR_NORMAL_SAT_BASE + Math.random() * CFG.ENEMY_COLOR_NORMAL_SAT_SPREAD)}%,${Math.round(CFG.ENEMY_COLOR_NORMAL_LIGHT_BASE + Math.random() * CFG.ENEMY_COLOR_NORMAL_LIGHT_SPREAD)}%)`
   }
 
   // Sprinter-specific fields for sprint cycle
@@ -651,14 +651,14 @@ function updateNotification(dt) {
 function drawNotification() {
   const n = state.notification
   if (!n || n.timer <= 0) return
-  const alpha = Math.min(1, n.timer / 0.4)  // fade out last 0.4s
+  const alpha = Math.min(1, n.timer / CFG.NOTIF_FADE_DURATION)
   const y     = Math.round(world.h * CFG.NOTIF_Y_FRAC)
   ctx.save()
   ctx.globalAlpha  = alpha
-  ctx.fillStyle    = 'rgba(0,0,0,0.55)'
-  const tw         = ctx.measureText(n.text).width + 40
-  ctx.fillRect(world.w / 2 - tw / 2, y - CFG.NOTIF_FONT - 4, tw, CFG.NOTIF_FONT + 16)
-  ctx.shadowBlur   = 18
+  ctx.fillStyle    = `rgba(0,0,0,${CFG.NOTIF_BACKDROP_ALPHA})`
+  const tw         = ctx.measureText(n.text).width + CFG.NOTIF_BACKDROP_PADDING
+  ctx.fillRect(world.w / 2 - tw / 2, y - CFG.NOTIF_FONT - CFG.NOTIF_BACKDROP_PAD_TOP, tw, CFG.NOTIF_FONT + CFG.NOTIF_BACKDROP_EXTRA_H)
+  ctx.shadowBlur   = CFG.NOTIF_SHADOW_BLUR
   ctx.shadowColor  = n.color
   ctx.fillStyle    = n.color
   ctx.font         = `bold ${CFG.NOTIF_FONT}px Inter, system-ui, sans-serif`
@@ -702,7 +702,7 @@ function updateBoss(dt) {
   b.aliveTimer += dt
 
   // Phase-2 shield trigger at 50% HP
-  if (b.phase === 1 && b.hp <= b.maxHp * 0.5) {
+  if (b.phase === 1 && b.hp <= b.maxHp * CFG.BOSS_PHASE2_HP_FRAC) {
     b.phase       = 2
     b.shieldActive = true
     b.shieldTimer  = CFG.BOSS_SHIELD_DURATION
@@ -742,7 +742,7 @@ function updateBoss(dt) {
     // Slow horizontal tracking of turret (faster when enraged)
     const trackSpeed = b.enraged ? CFG.BOSS_TRACK_SPEED * CFG.BOSS_ENRAGE_TRACK_MULT : CFG.BOSS_TRACK_SPEED
     const diff       = state.turret.x - b.x
-    if (Math.abs(diff) > 1) b.x += Math.sign(diff) * Math.min(Math.abs(diff), trackSpeed * dt)
+    if (Math.abs(diff) > CFG.BOSS_TRACK_DEADZONE) b.x += Math.sign(diff) * Math.min(Math.abs(diff), trackSpeed * dt)
   }
 
   b.x = Math.max(b.r, Math.min(world.w - b.r, b.x))
@@ -752,7 +752,7 @@ function updateBoss(dt) {
   const bdx = b.x - t.x, bdy = b.y - t.y
   if (bdx * bdx + bdy * bdy < (b.r + CFG.TURRET_WIDTH / 2) * (b.r + CFG.TURRET_WIDTH / 2)) {
     applyTurretHit(CFG.BOSS_TURRET_DAMAGE)
-    b.x += Math.sign(bdx || 1) * 30  // push away
+    b.x += Math.sign(bdx || 1) * CFG.BOSS_TURRET_PUSHBACK
   }
 }
 
@@ -772,11 +772,11 @@ function handleBossBulletCollisions() {
 
     if (b.hp <= 0) {
       // Boss death — big explosion + drops
-      spawnExplosion(b.x, b.y, 120, false)
+      spawnExplosion(b.x, b.y, CFG.BOSS_DEATH_EXPLOSION_R, false)
       for (let i = 0; i < CFG.BOSS_CRYSTAL_DROP; i++) {
         state.crystalPickups.push({
-          x:  b.x + (Math.random() - 0.5) * 80,
-          y:  b.y + (Math.random() - 0.5) * 40,
+          x:  b.x + (Math.random() - 0.5) * CFG.BOSS_DEATH_CRYSTAL_SPREAD_X,
+          y:  b.y + (Math.random() - 0.5) * CFG.BOSS_DEATH_CRYSTAL_SPREAD_Y,
           vy: CFG.CRYSTAL_SPEED_MIN + Math.random() * (CFG.CRYSTAL_SPEED_MAX - CFG.CRYSTAL_SPEED_MIN),
         })
       }
@@ -785,7 +785,7 @@ function handleBossBulletCollisions() {
         + (Math.random() < CFG.BOSS_COIN_CHANCE_EXTRA_2 ? 1 : 0)
       for (let i = 0; i < coinCount; i++) {
         state.coinPickups.push({
-          x:  b.x + (Math.random() - 0.5) * 60,
+          x:  b.x + (Math.random() - 0.5) * CFG.BOSS_DEATH_COIN_SPREAD_X,
           y:  b.y,
           vy: CFG.COIN_SPEED_MIN + Math.random() * (CFG.COIN_SPEED_MAX - CFG.COIN_SPEED_MIN),
         })
@@ -811,10 +811,10 @@ function drawBoss() {
   if (b.shieldActive) {
     ctx.save()
     ctx.strokeStyle = '#60a5fa'
-    ctx.lineWidth   = 5
-    ctx.shadowBlur  = 24
+    ctx.lineWidth   = CFG.BOSS_SHIELD_LINE_W
+    ctx.shadowBlur  = CFG.BOSS_SHIELD_SHADOW_BLUR
     ctx.shadowColor = '#60a5fa'
-    ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 10 + 4 * Math.sin(state.time * 12), 0, Math.PI * 2); ctx.stroke()
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r + CFG.BOSS_SHIELD_RING_OFFSET + CFG.BOSS_SHIELD_RING_AMP * Math.sin(state.time * CFG.BOSS_SHIELD_RING_FREQ), 0, Math.PI * 2); ctx.stroke()
     ctx.restore()
   }
 
@@ -829,12 +829,12 @@ function drawBoss() {
 
   // Inner highlight ring
   ctx.strokeStyle = '#c4b5fd'
-  ctx.lineWidth   = 3
-  ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 8, 0, Math.PI * 2); ctx.stroke()
+  ctx.lineWidth   = CFG.BOSS_INNER_RING_LINE_W
+  ctx.beginPath(); ctx.arc(b.x, b.y, b.r - CFG.BOSS_INNER_RING_INSET, 0, Math.PI * 2); ctx.stroke()
 
   // Boss label
   ctx.fillStyle    = '#fff'
-  ctx.font         = `bold ${b.enraged ? 22 : 18}px Inter, system-ui`
+  ctx.font         = `bold ${b.enraged ? CFG.BOSS_EMOJI_FONT_ENRAGED : CFG.BOSS_EMOJI_FONT_NORMAL}px Inter, system-ui`
   ctx.textAlign    = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(b.enraged ? '😡' : '👑', b.x, b.y)
@@ -843,13 +843,13 @@ function drawBoss() {
 
   // Boss HP bar (above body)
   const hpPct  = b.hp / b.maxHp
-  const barW   = b.r * 3
-  const barH   = 8
+  const barW   = b.r * CFG.BOSS_HP_BAR_W_MULT
+  const barH   = CFG.BOSS_HP_BAR_H
   const barX   = b.x - barW / 2
-  const barY   = b.y - b.r - barH - 6
+  const barY   = b.y - b.r - barH - CFG.BOSS_HP_BAR_Y_GAP
   ctx.fillStyle = '#1e293b'
   ctx.fillRect(barX, barY, barW, barH)
-  ctx.fillStyle = hpPct > 0.5 ? '#c084fc' : hpPct > 0.25 ? '#f97316' : '#ef4444'
+  ctx.fillStyle = hpPct > CFG.HUD_HP_MID ? '#c084fc' : hpPct > CFG.HUD_HP_LOW ? '#f97316' : '#ef4444'
   ctx.fillRect(barX, barY, barW * hpPct, barH)
   ctx.strokeStyle = '#4c1d95'
   ctx.lineWidth   = 1
@@ -857,9 +857,9 @@ function drawBoss() {
 
   // BOSS label text
   ctx.fillStyle    = '#e9d5ff'
-  ctx.font         = 'bold 10px Inter, system-ui'
+  ctx.font         = `bold ${CFG.BOSS_HP_LABEL_FONT}px Inter, system-ui`
   ctx.textAlign    = 'center'
-  ctx.fillText(`PATRON  ${Math.ceil(b.hp)} / ${b.maxHp}`, b.x, barY - 3)
+  ctx.fillText(`PATRON  ${Math.ceil(b.hp)} / ${b.maxHp}`, b.x, barY - CFG.BOSS_HP_LABEL_GAP)
   ctx.textAlign    = 'left'
 }
 
@@ -874,17 +874,17 @@ function startHorde() {
 }
 function drawHordeBanner() {
   if (!state.horde.active) return
-  const alpha = Math.min(1, state.horde.timer / 1.0) * 0.7
+  const alpha = Math.min(1, state.horde.timer / CFG.HORDE_BANNER_FADE_DURATION) * CFG.HORDE_BANNER_ALPHA_MULT
   ctx.save()
   ctx.globalAlpha = alpha
   ctx.fillStyle   = '#7f1d1d'
-  ctx.fillRect(0, 32, world.w, 22)
-  ctx.globalAlpha = Math.min(1, state.horde.timer / 1.0)
+  ctx.fillRect(0, CFG.HORDE_BANNER_Y, world.w, CFG.HORDE_BANNER_H)
+  ctx.globalAlpha = Math.min(1, state.horde.timer / CFG.HORDE_BANNER_FADE_DURATION)
   ctx.fillStyle   = '#fca5a5'
-  ctx.font        = 'bold 12px Inter, system-ui'
+  ctx.font        = `bold ${CFG.HORDE_BANNER_FONT}px Inter, system-ui`
   ctx.textAlign   = 'center'
   ctx.textBaseline= 'middle'
-  ctx.fillText(`⚔ SÜRÜ — ${Math.ceil(state.horde.timer)}s`, world.w / 2, 43)
+  ctx.fillText(`⚔ SÜRÜ — ${Math.ceil(state.horde.timer)}s`, world.w / 2, CFG.HORDE_BANNER_TEXT_Y)
   ctx.textBaseline= 'alphabetic'
   ctx.textAlign   = 'left'
   ctx.restore()
@@ -1262,7 +1262,7 @@ function drawEnemies() {
       ctx.fillRect(e.x - e.r, e.y - e.r, e.r * 2, e.r * 2)
       ctx.restore()
       ctx.fillStyle    = '#fbbf24'
-      ctx.font         = `bold ${Math.max(10, e.r - 4)}px Inter, system-ui`
+      ctx.font         = `bold ${Math.max(CFG.ENEMY_ELITE_LABEL_FONT_MIN, e.r - CFG.ENEMY_ELITE_LABEL_FONT_OFFSET)}px Inter, system-ui`
       ctx.textAlign    = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillText('★', e.x, e.y)
@@ -1280,7 +1280,7 @@ function drawEnemies() {
       // Sprint indicator: small arrow
       if (e.isSprinting) {
         ctx.fillStyle    = '#fff'
-        ctx.font         = `bold ${Math.max(8, e.r - 2)}px Inter, system-ui`
+        ctx.font         = `bold ${Math.max(CFG.ENEMY_SPRINTER_LABEL_FONT_MIN, e.r - CFG.ENEMY_SPRINTER_LABEL_FONT_OFFSET)}px Inter, system-ui`
         ctx.textAlign    = 'center'
         ctx.textBaseline = 'middle'
         ctx.fillText('▼', e.x, e.y)
@@ -1483,7 +1483,7 @@ function drawPlayingScreen() {
   // Crystal pickups
   for (const c of state.crystalPickups) {
     ctx.save()
-    ctx.shadowBlur  = 6
+    ctx.shadowBlur  = CFG.CRYSTAL_SHADOW_BLUR
     ctx.shadowColor = '#7dd3fc'
     ctx.fillStyle   = '#7dd3fc'
     ctx.beginPath()
@@ -1498,10 +1498,10 @@ function drawPlayingScreen() {
   // Coin pickups
   for (const c of state.coinPickups) {
     ctx.save()
-    ctx.shadowBlur = 8; ctx.shadowColor = '#fbbf24'
+    ctx.shadowBlur = CFG.COIN_SHADOW_BLUR; ctx.shadowColor = '#fbbf24'
     ctx.beginPath(); ctx.arc(c.x, c.y, CFG.COIN_RADIUS, 0, Math.PI * 2)
     ctx.fillStyle = '#fbbf24'; ctx.fill()
-    ctx.strokeStyle = '#d97706'; ctx.lineWidth = 2; ctx.stroke()
+    ctx.strokeStyle = '#d97706'; ctx.lineWidth = CFG.COIN_STROKE_W; ctx.stroke()
     ctx.fillStyle    = '#78350f'
     ctx.font         = `bold ${CFG.COIN_RADIUS + 1}px Inter, system-ui`
     ctx.textAlign    = 'center'; ctx.textBaseline = 'middle'

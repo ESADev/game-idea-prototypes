@@ -204,6 +204,30 @@ export const CFG = {
   BOSS_COIN_CHANCE_EXTRA_2:  0.5,  // chance of 5th coin
   BOSS_MONEY_REWARD:          8,   // flat money bonus on boss death
 
+  // ── Boss behavior & drawing constants ──────────────────────────────────────
+  // These control per-frame logic and rendering detail; separate from schedule/stat constants above.
+  BOSS_PHASE2_HP_FRAC:         0.5,  // HP fraction at which phase-2 shield triggers (0–1)
+  BOSS_TRACK_DEADZONE:         1,    // px tracking deadzone — prevents jitter when aligned
+  BOSS_TURRET_PUSHBACK:        30,   // px boss is pushed away from turret body on contact
+  BOSS_DEATH_EXPLOSION_R:      120,  // maxR of the big death explosion (px)
+  BOSS_DEATH_CRYSTAL_SPREAD_X: 80,   // ± horizontal scatter for crystal drops at boss death (px)
+  BOSS_DEATH_CRYSTAL_SPREAD_Y: 40,   // ± vertical scatter for crystal drops at boss death (px)
+  BOSS_DEATH_COIN_SPREAD_X:    60,   // ± horizontal scatter for coin drops at boss death (px)
+  BOSS_SHIELD_LINE_W:          5,    // stroke width of phase-2 shield ring (px)
+  BOSS_SHIELD_SHADOW_BLUR:     24,   // shadowBlur for shield ring glow
+  BOSS_SHIELD_RING_OFFSET:     10,   // px the shield ring is drawn outside the boss radius
+  BOSS_SHIELD_RING_AMP:        4,    // oscillation amplitude of shield ring (px)
+  BOSS_SHIELD_RING_FREQ:       12,   // oscillation frequency of shield ring (rad/s)
+  BOSS_INNER_RING_INSET:       8,    // px inner highlight ring is inset from boss radius
+  BOSS_INNER_RING_LINE_W:      3,    // stroke width of inner highlight ring (px)
+  BOSS_EMOJI_FONT_NORMAL:      18,   // font size for crown emoji label (px)
+  BOSS_EMOJI_FONT_ENRAGED:     22,   // font size for angry emoji when enraged (px)
+  BOSS_HP_BAR_W_MULT:          3,    // HP bar width = BOSS_RADIUS × this multiplier
+  BOSS_HP_BAR_H:               8,    // height of boss HP bar (px)
+  BOSS_HP_BAR_Y_GAP:           6,    // px gap between boss body top-edge and HP bar bottom
+  BOSS_HP_LABEL_FONT:          10,   // font size for HP counter text drawn above bar (px)
+  BOSS_HP_LABEL_GAP:           3,    // px gap between HP bar top and label text baseline
+
   // ── Horde system ───────────────────────────────────────────────────────────
   // Flood of enemies for a fixed duration; spawn interval overrides normal rate.
   HORDE_FIRST_TIME:      180,   // first horde at 3:00 (seconds)
@@ -211,10 +235,24 @@ export const CFG = {
   HORDE_DURATION:         18,   // seconds the horde lasts
   HORDE_SPAWN_INTERVAL:  0.10,  // enemy spawn interval during horde (10/s)
 
+  // ── Horde banner drawing ────────────────────────────────────────────────────
+  HORDE_BANNER_FADE_DURATION: 1.0,  // horde-timer seconds over which banner fades out
+  HORDE_BANNER_ALPHA_MULT:    0.7,  // background strip alpha = text alpha × this (dimmer bg)
+  HORDE_BANNER_Y:             32,   // y coordinate of banner top edge (px from canvas top)
+  HORDE_BANNER_H:             22,   // height of banner rectangle (px)
+  HORDE_BANNER_TEXT_Y:        43,   // y center coordinate for banner text (px)
+  HORDE_BANNER_FONT:          12,   // font size for horde countdown text (px)
+
   // ── Notification overlay ───────────────────────────────────────────────────
-  NOTIF_DURATION:  3.2,  // seconds notification stays visible
-  NOTIF_FONT:       28,  // font size (px)
-  NOTIF_Y_FRAC:    0.38, // canvas-height fraction for notification center
+  NOTIF_DURATION:          3.2,   // seconds notification stays visible
+  NOTIF_FONT:               28,   // font size (px)
+  NOTIF_Y_FRAC:            0.38,  // canvas-height fraction for notification center
+  NOTIF_FADE_DURATION:     0.4,   // seconds of fade-out at end of notification timer
+  NOTIF_BACKDROP_ALPHA:    0.55,  // opacity of notification backdrop rectangle
+  NOTIF_BACKDROP_PADDING:  40,    // extra width added to text measurement for backdrop (px)
+  NOTIF_BACKDROP_PAD_TOP:  4,     // px above font-top for backdrop upper edge
+  NOTIF_BACKDROP_EXTRA_H:  16,    // backdrop height = NOTIF_FONT + this (px)
+  NOTIF_SHADOW_BLUR:        18,   // shadowBlur on notification text glow
 
   // ── Castle ─────────────────────────────────────────────────────────────────
   CASTLE_MAX_HP:  300,
@@ -266,7 +304,45 @@ export const CFG = {
   ANIM_BOSS_PULSE_BASE:             20,
   ANIM_BOSS_PULSE_AMP:              10,
 
+  // ── Enemy color palette ────────────────────────────────────────────────────
+  // All HSL. Each type has: HUE base, HUE_SPREAD (±), SAT_BASE, SAT_SPREAD, LIGHT_BASE, LIGHT_SPREAD.
+  // Changing HUE shifts the whole type's look; SPREAD adds per-enemy variation.
+  // Elite = purple (distinguishable, scary). Sprinter = cyan (fast, icy).
+  // Normal shifts red → orange → amber as tier increases (visual danger escalation).
+  ENEMY_COLOR_ELITE_HUE:             270,  // base hue for elite (purple, degrees 0–360)
+  ENEMY_COLOR_ELITE_HUE_SPREAD:      30,   // ± random hue variation (degrees)
+  ENEMY_COLOR_ELITE_SAT_BASE:        80,   // base saturation %
+  ENEMY_COLOR_ELITE_SAT_SPREAD:      20,   // + random saturation addition %
+  ENEMY_COLOR_ELITE_LIGHT_BASE:      45,   // base lightness %
+  ENEMY_COLOR_ELITE_LIGHT_SPREAD:    10,   // + random lightness addition %
+  ENEMY_COLOR_SPRINTER_HUE:          185,  // base hue for sprinter (cyan, degrees)
+  ENEMY_COLOR_SPRINTER_HUE_SPREAD:   20,   // ± hue variation
+  ENEMY_COLOR_SPRINTER_SAT_BASE:     80,
+  ENEMY_COLOR_SPRINTER_SAT_SPREAD:   15,
+  ENEMY_COLOR_SPRINTER_LIGHT_BASE:   48,
+  ENEMY_COLOR_SPRINTER_LIGHT_SPREAD: 10,
+  ENEMY_COLOR_NORMAL_HUE_BASE:       355,  // tier-0 hue = near-red (355° wraps near red)
+  ENEMY_COLOR_TIER_HUE_STEP:         20,   // hue shifts +this per tier (red→orange→amber)
+  ENEMY_COLOR_NORMAL_HUE_SPREAD:     16,   // ± per-enemy hue randomness
+  ENEMY_COLOR_NORMAL_SAT_BASE:       70,
+  ENEMY_COLOR_NORMAL_SAT_SPREAD:     20,
+  ENEMY_COLOR_NORMAL_LIGHT_BASE:     45,
+  ENEMY_COLOR_NORMAL_LIGHT_SPREAD:   10,
+
+  // ── Pickup drawing ─────────────────────────────────────────────────────────
+  CRYSTAL_SHADOW_BLUR:  6,   // shadowBlur for crystal pickup glow (px)
+  COIN_SHADOW_BLUR:     8,   // shadowBlur for coin pickup glow (px)
+  COIN_STROKE_W:        2,   // stroke lineWidth for coin outline (px)
+
+  // ── Enemy label fonts ──────────────────────────────────────────────────────
+  // Emoji labels on elite/sprinter enemies scale with enemy radius.
+  ENEMY_ELITE_LABEL_FONT_MIN:      10,  // minimum font size for elite star emoji (px)
+  ENEMY_ELITE_LABEL_FONT_OFFSET:   4,   // font size = max(min, e.r − offset)
+  ENEMY_SPRINTER_LABEL_FONT_MIN:   8,   // minimum font size for sprinter arrow emoji (px)
+  ENEMY_SPRINTER_LABEL_FONT_OFFSET: 2,  // font size = max(min, e.r − offset)
+
   // ── Breach line & danger zone ──────────────────────────────────────────────
+  BREACH_DANGER_GAP:       0,    // px gap between turret bottom and danger-zone overlay top
   BREACH_Y_OFFSET:         8,
   BREACH_LINE_W:           2,
   BREACH_LINE_SHADOW_BLUR: 10,
