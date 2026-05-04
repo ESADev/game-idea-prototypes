@@ -144,7 +144,7 @@ const state = {
 
   upgrades:          { fireRate: 0, bulletDmg: 0, pierce: 0, bulletCount: 0 },
   inRunUpgrades:     { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0, ammoCapacity: 0 },
-  inRunUpgradesCount: 0,  // total in-run upgrades taken this run (drives crystal cost curve)
+  inRunUpgradesCount: 0,
 
   bullets:        [],
   enemies:        [],
@@ -153,8 +153,17 @@ const state = {
   explosions:     [],
 
   fireTimer:    0,
-  ammo:         CFG.AMMO_MAX_BASE,  // current ammo; drains per shot, regens over time
-  lastFireTime: -999,               // state.time when last shot was fired; drives regen delay
+  ammo:         CFG.AMMO_MAX_BASE,
+  lastFireTime: -999,
+
+  // ── Boss / horde / tier / notification ──────────────────────────────────
+  boss:          null,               // boss object while alive, null otherwise
+  bossNextTime:  CFG.BOSS_FIRST_TIME,
+  bossCount:     0,                  // bosses spawned this run (drives HP scaling)
+  horde:         { active: false, timer: 0, nextTime: CFG.HORDE_FIRST_TIME },
+  enemyTier:     0,                  // current tier (increments at TIER_FIRST_TIME + k*TIER_PERIOD)
+  tierNextTime:  CFG.TIER_FIRST_TIME,
+  notification:  null,               // { text, color, timer } or null
 
   turret: {
     x:           world.w / 2,
@@ -285,7 +294,15 @@ function resetRun() {
 
   state.inRunUpgrades      = { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0, ammoCapacity: 0 }
   state.inRunUpgradesCount = 0
-  state.ammo               = getMaxAmmo()  // call after inRunUpgrades reset
+  state.ammo               = getMaxAmmo()
+
+  state.boss          = null
+  state.bossNextTime  = CFG.BOSS_FIRST_TIME
+  state.bossCount     = 0
+  state.horde         = { active: false, timer: 0, nextTime: CFG.HORDE_FIRST_TIME }
+  state.enemyTier     = 0
+  state.tierNextTime  = CFG.TIER_FIRST_TIME
+  state.notification  = null
 
   state.turret.x           = world.w / 2
   state.turret.vx          = 0
@@ -404,32 +421,64 @@ function spawnEnemy() {
     y = Math.random() * world.h * CFG.ENEMY_SIDE_Y_FRACTION
   }
 
-  const isElite = Math.random() < CFG.ELITE_SPAWN_CHANCE
-  const baseR   = CFG.ENEMY_BASE_RADIUS + Math.floor((Math.random() - 0.5) * CFG.ENEMY_RADIUS_VARIANCE)
-  const r       = isElite ? Math.round(baseR * CFG.ELITE_RADIUS_MULT) : baseR
+  const isElite    = Math.random() < CFG.ELITE_SPAWN_CHANCE
+  const isSprinter = !isElite && Math.random() < CFG.SPRINTER_SPAWN_CHANCE
 
-  // Additive time bonus (early-game ramp)
-  const addBonus   = Math.min(CFG.ENEMY_SPEED_TIME_CAP, state.time * CFG.ENEMY_SPEED_TIME_SCALE)
-  // Multiplicative global ramp (late-game escalation): lerp START → MAX over RAMP_TIME
-  const rampT      = Math.min(1, state.time / CFG.ENEMY_SPEED_MULT_RAMP_TIME)
-  const speedMult  = CFG.ENEMY_SPEED_MULT_START + (CFG.ENEMY_SPEED_MULT_MAX - CFG.ENEMY_SPEED_MULT_START) * rampT
-  const baseSpeed  = (CFG.ENEMY_BASE_SPEED + Math.random() * CFG.ENEMY_SPEED_VARIANCE + addBonus) * speedMult
-  const speed      = isElite ? baseSpeed * CFG.ELITE_SPEED_MULT : baseSpeed
+  const baseR = CFG.ENEMY_BASE_RADIUS + Math.floor((Math.random() - 0.5) * CFG.ENEMY_RADIUS_VARIANCE)
+  const r     = isElite ? Math.round(baseR * CFG.ELITE_RADIUS_MULT) : baseR
 
-  const baseHp = CFG.ENEMY_BASE_HP + Math.min(CFG.ENEMY_HP_TIME_CAP, state.time * CFG.ENEMY_HP_TIME_SCALE)
-  const maxHp  = isElite ? Math.round(baseHp * CFG.ELITE_HP_MULT) : Math.round(baseHp)
+  // Speed: additive time bonus + global multiplier ramp + tier bonus
+  const addBonus  = Math.min(CFG.ENEMY_SPEED_TIME_CAP, state.time * CFG.ENEMY_SPEED_TIME_SCALE)
+  const rampT     = Math.min(1, state.time / CFG.ENEMY_SPEED_MULT_RAMP_TIME)
+  const globalMult = CFG.ENEMY_SPEED_MULT_START + (CFG.ENEMY_SPEED_MULT_MAX - CFG.ENEMY_SPEED_MULT_START) * rampT
+  const tierSpeedMult = 1 + state.enemyTier * CFG.TIER_SPEED_MULT_PER_TIER
+  let baseSpeed = (CFG.ENEMY_BASE_SPEED + Math.random() * CFG.ENEMY_SPEED_VARIANCE + addBonus) * globalMult * tierSpeedMult
+  if (isElite)    baseSpeed *= CFG.ELITE_SPEED_MULT
+  if (isSprinter) baseSpeed *= CFG.SPRINTER_SPEED_MULT
+  const speed = baseSpeed
 
-  const color = isElite
-    ? `hsl(${Math.round(270 + (Math.random() - 0.5) * 30)},${Math.round(80 + Math.random() * 20)}%,${Math.round(45 + Math.random() * 10)}%)`
-    : `hsl(${Math.round(355 + (Math.random() - 0.5) * 20)},${Math.round(70 + Math.random() * 20)}%,${Math.round(45 + Math.random() * 10)}%)`
+  // HP: time scaling + tier bonus
+  const tierHpMult = 1 + state.enemyTier * CFG.TIER_HP_MULT_PER_TIER
+  const rawHp  = (CFG.ENEMY_BASE_HP + Math.min(CFG.ENEMY_HP_TIME_CAP, state.time * CFG.ENEMY_HP_TIME_SCALE)) * tierHpMult
+  let maxHp    = Math.round(isElite ? rawHp * CFG.ELITE_HP_MULT : isSprinter ? rawHp * CFG.SPRINTER_HP_MULT : rawHp)
 
-  state.enemies.push({ x, y, r, color, speed, hp: maxHp, maxHp, isElite, breaching: false })
+  // Color: elite=purple, sprinter=cyan, tier-normal shifts red→orange→amber
+  let color
+  if (isElite) {
+    color = `hsl(${Math.round(270 + (Math.random() - 0.5) * 30)},${Math.round(80 + Math.random() * 20)}%,${Math.round(45 + Math.random() * 10)}%)`
+  } else if (isSprinter) {
+    color = `hsl(${Math.round(185 + (Math.random() - 0.5) * 20)},${Math.round(80 + Math.random() * 15)}%,${Math.round(48 + Math.random() * 10)}%)`
+  } else {
+    // Tier 0=355(red), 1=15(orange-red), 2=35(orange), 3+=50(amber)
+    const tierHue = (355 + state.enemyTier * 20) % 360
+    color = `hsl(${Math.round(tierHue + (Math.random() - 0.5) * 16)},${Math.round(70 + Math.random() * 20)}%,${Math.round(45 + Math.random() * 10)}%)`
+  }
+
+  // Sprinter-specific fields for sprint cycle
+  const sprintExtra = isSprinter
+    ? { isSprinting: false, sprintTimer: Math.random() * CFG.SPRINTER_REST_DURATION }
+    : {}
+
+  state.enemies.push({ x, y, r, color, speed, hp: maxHp, maxHp, isElite, isSprinter, breaching: false, ...sprintExtra })
 }
 
 function handleEnemyMovement(dt) {
   for (const e of state.enemies) {
-    if (e.breaching) e.speed = Math.max(0, e.speed - CFG.ENEMY_BREACH_DECEL * dt)
-    e.y += e.speed * dt
+    // Sprinter: update sprint cycle, compute effective speed
+    let effectiveSpeed = e.speed
+    if (e.isSprinter && !e.breaching) {
+      e.sprintTimer -= dt
+      if (e.sprintTimer <= 0) {
+        e.isSprinting = !e.isSprinting
+        e.sprintTimer = e.isSprinting ? CFG.SPRINTER_SPRINT_DURATION : CFG.SPRINTER_REST_DURATION
+      }
+      if (e.isSprinting) effectiveSpeed = e.speed * CFG.SPRINTER_SPRINT_SPEED_MULT
+    }
+    if (e.breaching) {
+      e.speed = Math.max(0, e.speed - CFG.ENEMY_BREACH_DECEL * dt)
+      effectiveSpeed = e.speed
+    }
+    e.y += effectiveSpeed * dt
   }
 
   for (let i = state.enemies.length - 1; i >= 0; i--) {
@@ -584,6 +633,283 @@ function updateCoins(dt) {
       continue
     }
     if (c.y - pr > world.h) state.coinPickups.splice(i, 1)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Notification
+// ─────────────────────────────────────────────────────────────────────────────
+function triggerNotification(text, color) {
+  state.notification = { text, color, timer: CFG.NOTIF_DURATION }
+}
+function updateNotification(dt) {
+  if (state.notification) {
+    state.notification.timer -= dt
+    if (state.notification.timer <= 0) state.notification = null
+  }
+}
+function drawNotification() {
+  const n = state.notification
+  if (!n || n.timer <= 0) return
+  const alpha = Math.min(1, n.timer / 0.4)  // fade out last 0.4s
+  const y     = Math.round(world.h * CFG.NOTIF_Y_FRAC)
+  ctx.save()
+  ctx.globalAlpha  = alpha
+  ctx.fillStyle    = 'rgba(0,0,0,0.55)'
+  const tw         = ctx.measureText(n.text).width + 40
+  ctx.fillRect(world.w / 2 - tw / 2, y - CFG.NOTIF_FONT - 4, tw, CFG.NOTIF_FONT + 16)
+  ctx.shadowBlur   = 18
+  ctx.shadowColor  = n.color
+  ctx.fillStyle    = n.color
+  ctx.font         = `bold ${CFG.NOTIF_FONT}px Inter, system-ui, sans-serif`
+  ctx.textAlign    = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(n.text, world.w / 2, y)
+  ctx.textBaseline = 'alphabetic'
+  ctx.textAlign    = 'left'
+  ctx.restore()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Boss system
+// ─────────────────────────────────────────────────────────────────────────────
+function spawnBoss() {
+  const hoverY = state.turret.y - CFG.TURRET_HEIGHT / 2 - CFG.BOSS_RADIUS - CFG.BOSS_HOVER_OFFSET
+  const hp     = CFG.BOSS_HP_BASE + state.bossCount * CFG.BOSS_HP_PER_WAVE
+  state.boss   = {
+    x: world.w / 2,
+    y: -CFG.BOSS_RADIUS,
+    hoverY,
+    r:             CFG.BOSS_RADIUS,
+    hp,
+    maxHp:         hp,
+    phase:         1,           // 1=full, 2=after-50%-shield-triggered
+    shieldActive:  false,
+    shieldTimer:   0,
+    chargeTimer:   CFG.BOSS_CHARGE_INTERVAL_INIT,
+    isCharging:    false,
+    chargeTargetX: world.w / 2,
+    chargeVx:      0,
+    aliveTimer:    0,
+    enraged:       false,
+  }
+}
+
+function updateBoss(dt) {
+  const b = state.boss
+  if (!b) return
+
+  b.aliveTimer += dt
+
+  // Phase-2 shield trigger at 50% HP
+  if (b.phase === 1 && b.hp <= b.maxHp * 0.5) {
+    b.phase       = 2
+    b.shieldActive = true
+    b.shieldTimer  = CFG.BOSS_SHIELD_DURATION
+    triggerNotification('🛡 PATRON — FAZE 2!', '#60a5fa')
+  }
+  if (b.shieldActive) {
+    b.shieldTimer -= dt
+    if (b.shieldTimer <= 0) b.shieldActive = false
+  }
+
+  // Enrage after too long alive
+  if (!b.enraged && b.aliveTimer >= CFG.BOSS_ENRAGE_TIME) {
+    b.enraged = true
+    triggerNotification('😡 PATRON ÖFKELI!', '#ef4444')
+  }
+
+  // Descend to hover height
+  if (b.y < b.hoverY) {
+    b.y = Math.min(b.hoverY, b.y + CFG.BOSS_DESCENT_SPEED * dt)
+    return  // don't charge while descending
+  }
+
+  // Charge mechanic
+  b.chargeTimer -= dt
+  if (!b.isCharging && b.chargeTimer <= 0) {
+    b.isCharging    = true
+    b.chargeTargetX = CFG.BOSS_RADIUS + Math.random() * (world.w - CFG.BOSS_RADIUS * 2)
+    b.chargeVx      = Math.sign(b.chargeTargetX - b.x) * CFG.BOSS_CHARGE_SPEED
+    b.chargeTimer   = CFG.BOSS_CHARGE_INTERVAL
+  }
+
+  if (b.isCharging) {
+    b.x += b.chargeVx * dt
+    const reached = b.chargeVx >= 0 ? b.x >= b.chargeTargetX : b.x <= b.chargeTargetX
+    if (reached) { b.x = b.chargeTargetX; b.isCharging = false }
+  } else {
+    // Slow horizontal tracking of turret (faster when enraged)
+    const trackSpeed = b.enraged ? CFG.BOSS_TRACK_SPEED * CFG.BOSS_ENRAGE_TRACK_MULT : CFG.BOSS_TRACK_SPEED
+    const diff       = state.turret.x - b.x
+    if (Math.abs(diff) > 1) b.x += Math.sign(diff) * Math.min(Math.abs(diff), trackSpeed * dt)
+  }
+
+  b.x = Math.max(b.r, Math.min(world.w - b.r, b.x))
+
+  // Boss-turret collision
+  const t   = state.turret
+  const bdx = b.x - t.x, bdy = b.y - t.y
+  if (bdx * bdx + bdy * bdy < (b.r + CFG.TURRET_WIDTH / 2) * (b.r + CFG.TURRET_WIDTH / 2)) {
+    applyTurretHit(CFG.BOSS_TURRET_DAMAGE)
+    b.x += Math.sign(bdx || 1) * 30  // push away
+  }
+}
+
+function handleBossBulletCollisions() {
+  const b = state.boss
+  if (!b || b.shieldActive) return
+
+  for (let bi = state.bullets.length - 1; bi >= 0; bi--) {
+    const bul = state.bullets[bi]
+    if (bul.hitIds.has(b)) continue
+    const dx = bul.x - b.x, dy = bul.y - b.y
+    if (dx * dx + dy * dy > (bul.r + b.r) * (bul.r + b.r)) continue
+
+    bul.hitIds.add(b)
+    b.hp -= bul.dmg
+    spawnExplosion(bul.x, bul.y, CFG.EXPLOSION_HIT_BULLET_MAXR, true)
+
+    if (b.hp <= 0) {
+      // Boss death — big explosion + drops
+      spawnExplosion(b.x, b.y, 120, false)
+      for (let i = 0; i < CFG.BOSS_CRYSTAL_DROP; i++) {
+        state.crystalPickups.push({
+          x:  b.x + (Math.random() - 0.5) * 80,
+          y:  b.y + (Math.random() - 0.5) * 40,
+          vy: CFG.CRYSTAL_SPEED_MIN + Math.random() * (CFG.CRYSTAL_SPEED_MAX - CFG.CRYSTAL_SPEED_MIN),
+        })
+      }
+      const coinCount = CFG.BOSS_COIN_DROP_MIN
+        + (Math.random() < CFG.BOSS_COIN_CHANCE_EXTRA_1 ? 1 : 0)
+        + (Math.random() < CFG.BOSS_COIN_CHANCE_EXTRA_2 ? 1 : 0)
+      for (let i = 0; i < coinCount; i++) {
+        state.coinPickups.push({
+          x:  b.x + (Math.random() - 0.5) * 60,
+          y:  b.y,
+          vy: CFG.COIN_SPEED_MIN + Math.random() * (CFG.COIN_SPEED_MAX - CFG.COIN_SPEED_MIN),
+        })
+      }
+      state.runKills++
+      state.money      += CFG.BOSS_MONEY_REWARD
+      state.bossNextTime = state.time + CFG.BOSS_PERIOD
+      state.boss         = null
+      triggerNotification('💀 PATRON YENİLDİ!', '#22c55e')
+      return
+    }
+
+    if (bul.pierceLeft > 0) { bul.pierceLeft -= 1 } else { state.bullets.splice(bi, 1); break }
+  }
+}
+
+function drawBoss() {
+  const b = state.boss
+  if (!b) return
+  const pulse = Math.sin(state.time * CFG.ANIM_BOSS_PULSE_FREQ)
+
+  // Shield ring (phase 2)
+  if (b.shieldActive) {
+    ctx.save()
+    ctx.strokeStyle = '#60a5fa'
+    ctx.lineWidth   = 5
+    ctx.shadowBlur  = 24
+    ctx.shadowColor = '#60a5fa'
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 10 + 4 * Math.sin(state.time * 12), 0, Math.PI * 2); ctx.stroke()
+    ctx.restore()
+  }
+
+  // Body
+  ctx.save()
+  const bossColor = b.enraged ? '#ff2200' : '#7c3aed'
+  ctx.shadowBlur  = CFG.ANIM_BOSS_PULSE_BASE + CFG.ANIM_BOSS_PULSE_AMP * pulse
+  ctx.shadowColor = bossColor
+  ctx.fillStyle   = bossColor
+  ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill()
+  ctx.restore()
+
+  // Inner highlight ring
+  ctx.strokeStyle = '#c4b5fd'
+  ctx.lineWidth   = 3
+  ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 8, 0, Math.PI * 2); ctx.stroke()
+
+  // Boss label
+  ctx.fillStyle    = '#fff'
+  ctx.font         = `bold ${b.enraged ? 22 : 18}px Inter, system-ui`
+  ctx.textAlign    = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(b.enraged ? '😡' : '👑', b.x, b.y)
+  ctx.textBaseline = 'alphabetic'
+  ctx.textAlign    = 'left'
+
+  // Boss HP bar (above body)
+  const hpPct  = b.hp / b.maxHp
+  const barW   = b.r * 3
+  const barH   = 8
+  const barX   = b.x - barW / 2
+  const barY   = b.y - b.r - barH - 6
+  ctx.fillStyle = '#1e293b'
+  ctx.fillRect(barX, barY, barW, barH)
+  ctx.fillStyle = hpPct > 0.5 ? '#c084fc' : hpPct > 0.25 ? '#f97316' : '#ef4444'
+  ctx.fillRect(barX, barY, barW * hpPct, barH)
+  ctx.strokeStyle = '#4c1d95'
+  ctx.lineWidth   = 1
+  ctx.strokeRect(barX, barY, barW, barH)
+
+  // BOSS label text
+  ctx.fillStyle    = '#e9d5ff'
+  ctx.font         = 'bold 10px Inter, system-ui'
+  ctx.textAlign    = 'center'
+  ctx.fillText(`PATRON  ${Math.ceil(b.hp)} / ${b.maxHp}`, b.x, barY - 3)
+  ctx.textAlign    = 'left'
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Horde system
+// ─────────────────────────────────────────────────────────────────────────────
+function startHorde() {
+  state.horde.active    = true
+  state.horde.timer     = CFG.HORDE_DURATION
+  state.horde.nextTime += CFG.HORDE_PERIOD
+  triggerNotification('💀 SÜRÜ SALDIRISI!', '#ef4444')
+}
+function drawHordeBanner() {
+  if (!state.horde.active) return
+  const alpha = Math.min(1, state.horde.timer / 1.0) * 0.7
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.fillStyle   = '#7f1d1d'
+  ctx.fillRect(0, 32, world.w, 22)
+  ctx.globalAlpha = Math.min(1, state.horde.timer / 1.0)
+  ctx.fillStyle   = '#fca5a5'
+  ctx.font        = 'bold 12px Inter, system-ui'
+  ctx.textAlign   = 'center'
+  ctx.textBaseline= 'middle'
+  ctx.fillText(`⚔ SÜRÜ — ${Math.ceil(state.horde.timer)}s`, world.w / 2, 43)
+  ctx.textBaseline= 'alphabetic'
+  ctx.textAlign   = 'left'
+  ctx.restore()
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Schedule check (boss / horde / tier)
+// ─────────────────────────────────────────────────────────────────────────────
+function checkSchedule() {
+  // Boss
+  if (state.boss === null && state.time >= state.bossNextTime) {
+    spawnBoss()
+    state.bossNextTime = state.time + CFG.BOSS_PERIOD  // next boss PERIOD after this spawn
+    state.bossCount++
+    triggerNotification('⚔ PATRON GELİYOR!', '#f97316')
+  }
+  // Horde
+  if (!state.horde.active && state.time >= state.horde.nextTime) {
+    startHorde()
+  }
+  // Enemy tier upgrade
+  if (state.time >= state.tierNextTime) {
+    state.enemyTier++
+    state.tierNextTime += CFG.TIER_PERIOD
+    triggerNotification(`⬆ DÜŞMAN YÜKSELTME — TİER ${state.enemyTier}`, '#eab308')
   }
 }
 
@@ -942,6 +1268,25 @@ function drawEnemies() {
       ctx.fillText('★', e.x, e.y)
       ctx.textBaseline = 'alphabetic'
       ctx.textAlign    = 'left'
+    } else if (e.isSprinter) {
+      ctx.save()
+      if (e.isSprinting) {
+        ctx.shadowBlur  = CFG.ANIM_SPRINTER_PULSE_BASE + CFG.ANIM_SPRINTER_PULSE_AMP * Math.sin(state.time * CFG.ANIM_SPRINTER_PULSE_FREQ)
+        ctx.shadowColor = '#22d3ee'
+      }
+      ctx.fillStyle = e.color
+      ctx.fillRect(e.x - e.r, e.y - e.r, e.r * 2, e.r * 2)
+      ctx.restore()
+      // Sprint indicator: small arrow
+      if (e.isSprinting) {
+        ctx.fillStyle    = '#fff'
+        ctx.font         = `bold ${Math.max(8, e.r - 2)}px Inter, system-ui`
+        ctx.textAlign    = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText('▼', e.x, e.y)
+        ctx.textBaseline = 'alphabetic'
+        ctx.textAlign    = 'left'
+      }
     } else {
       ctx.fillStyle = e.color
       ctx.fillRect(e.x - e.r, e.y - e.r, e.r * 2, e.r * 2)
@@ -1122,6 +1467,7 @@ function drawPlayingScreen() {
   ctx.strokeRect(CFG.CANVAS_BORDER_INSET, CFG.CANVAS_BORDER_INSET, world.w - CFG.CANVAS_BORDER_INSET * 2, world.h - CFG.CANVAS_BORDER_INSET * 2)
 
   drawEnemies()
+  drawBoss()
   drawTurret()
 
   // Bullets
@@ -1187,6 +1533,8 @@ function drawPlayingScreen() {
   // Crystal and ammo bars on top
   drawCrystalBar()
   drawAmmoBar()
+  drawHordeBanner()
+  drawNotification()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1242,11 +1590,18 @@ function loop(now) {
     }
     updateAmmo(dt)
 
-    // Enemy spawning
-    const targetInterval = Math.max(
-      CFG.ENEMY_SPAWN_INTERVAL_MIN,
-      CFG.ENEMY_SPAWN_INTERVAL_START - state.time * CFG.ENEMY_SPAWN_RATE_RAMP
-    )
+    // Schedule: boss / horde / tier
+    checkSchedule()
+
+    // Horde countdown
+    if (state.horde.active) {
+      state.horde.timer -= dt
+      if (state.horde.timer <= 0) state.horde.active = false
+    }
+
+    // Enemy spawning — use fast interval during horde
+    const baseInterval   = Math.max(CFG.ENEMY_SPAWN_INTERVAL_MIN, CFG.ENEMY_SPAWN_INTERVAL_START - state.time * CFG.ENEMY_SPAWN_RATE_RAMP)
+    const targetInterval = state.horde.active ? CFG.HORDE_SPAWN_INTERVAL : baseInterval
     state.spawnTimer += dt
     while (state.spawnTimer >= targetInterval && state.enemies.length < CFG.ENEMY_MAX_COUNT) {
       spawnEnemy()
@@ -1256,9 +1611,12 @@ function loop(now) {
     handleEnemyMovement(dt)
     updateBullets(dt)
     handleBulletEnemyCollisions()
+    handleBossBulletCollisions()
+    updateBoss(dt)
     updateCrystals(dt)
     updateCoins(dt)
     updateExplosions(dt)
+    updateNotification(dt)
 
     if (state.turret.hp <= 0 || state.castle.hp <= 0) endRun()
   }
