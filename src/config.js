@@ -54,10 +54,10 @@ export const CFG = {
   COIN_PICKUP_MARGIN:      4,     // extra overlap margin when checking turret contact (px)
 
   // ── Ammo system ────────────────────────────────────────────────────────────
-  AMMO_MAX_BASE:              25,   // base maximum ammo before any upgrade
+  AMMO_MAX_BASE:              35,   // base maximum ammo before any upgrade
   AMMO_COST_PER_VOLLEY:       1,    // ammo consumed per fireBullets() call
-  AMMO_REGEN_RATE:            10,   // ammo per second regenerated when not holding fire
-  AMMO_REGEN_DELAY:           0.8,  // seconds after releasing fire before regen begins
+  AMMO_REGEN_RATE:            15,   // ammo per second regenerated when not holding fire
+  AMMO_REGEN_DELAY:           0.6,  // seconds after releasing fire before regen begins
   AMMO_CAPACITY_PER_UPGRADE:  15,   // +max ammo per ammoCapacity in-run upgrade level
   AMMO_LOW_THRESHOLD:         0.25, // below this fill fraction the bar pulses red
 
@@ -84,7 +84,7 @@ export const CFG = {
   TURRET_BARREL_H:           26,   // barrel height (px)
   TURRET_BARREL_SHADOW_BLUR: 8,    // shadowBlur on barrel glow
   TURRET_MAX_HP:             100,  // turret hit points
-  TURRET_HP_PER_HIT:         25,   // damage when enemy body contacts turret
+  TURRET_HP_PER_HIT:         15,   // damage when enemy body contacts turret (reduced for survivability)
   TURRET_HP_REGEN_RATE:      5,    // HP/s regained after regen delay
   TURRET_HP_REGEN_DELAY:     2.5,  // seconds of no hits before regen kicks in
 
@@ -99,10 +99,10 @@ export const CFG = {
   TURRET_SHIELD_FONT:         11,  // font size for shield stack count label (px)
 
   // ── Bullets ────────────────────────────────────────────────────────────────
-  BULLET_BASE_FIRE_RATE:    2.0,  // shots per second at base level
+  BULLET_BASE_FIRE_RATE:    2.5,  // shots per second at base level (higher for survival)
   BULLET_FIRE_RATE_PER_LVL: 0.5,  // +shots/s per fireRate upgrade level
-  BULLET_BASE_DAMAGE:       34,   // damage per bullet at base level
-  BULLET_DAMAGE_PER_LVL:    17,   // +damage per bulletDmg upgrade level
+  BULLET_BASE_DAMAGE:       45,   // damage per bullet at base level (higher for early kills)
+  BULLET_DAMAGE_PER_LVL:    20,   // +damage per bulletDmg upgrade level
   BULLET_SPEED:             700,  // px/s upward
   BULLET_RADIUS:            5,    // collision and draw radius (px)
   BULLET_SHADOW_BLUR:       10,   // shadowBlur on bullet glow
@@ -122,32 +122,32 @@ export const CFG = {
   // ★ All time-scale values are tuned for 5× faster progression than original.
   // Balance formula: PlayerDPS(upgrades) / (EnemyHP(t) × spawnRate(t)) ≈ const
   // Crystal income ∝ spawnRate, upgrade count ∝ log(crystals), so balance holds.
-  ENEMY_SPAWN_INTERVAL_START:  2.0,    // seconds between spawns at game start
-  ENEMY_SPAWN_RATE_RAMP:       0.007,  // interval reduction per second (5× original 0.0014)
-  ENEMY_SPAWN_INTERVAL_MIN:    0.028,  // hard floor — reached ≈ 4.6 min (was ≈ 23 min)
+  ENEMY_SPAWN_INTERVAL_START:  2.5,    // seconds between spawns at game start (gentler opening)
+  ENEMY_SPAWN_RATE_RAMP:       0.005,  // interval reduction per second
+  ENEMY_SPAWN_INTERVAL_MIN:    0.08,   // hard floor — still reaches high density but not instant
   ENEMY_MAX_COUNT:             300,    // max simultaneous enemies (raised for horde effect)
   ENEMY_BASE_RADIUS:           21,     // base radius (px)
   ENEMY_RADIUS_VARIANCE:       6,      // ± random radius variation (px)
-  ENEMY_BASE_SPEED:            28,     // base movement speed (px/s)
-  ENEMY_SPEED_VARIANCE:        26,     // random speed addition per enemy (px/s)
-  ENEMY_SPEED_TIME_SCALE:      5.0,    // px/s additive bonus per second (5× original 1.8)
-  ENEMY_SPEED_TIME_CAP:        150,    // max additive speed bonus — reached ≈ 30 s
+  ENEMY_BASE_SPEED:            22,     // base movement speed (px/s) — reduced for survivability
+  ENEMY_SPEED_VARIANCE:        20,     // random speed addition per enemy (px/s)
+  ENEMY_SPEED_TIME_SCALE:      1.8,    // px/s additive bonus per second (tamed — was 5.0)
+  ENEMY_SPEED_TIME_CAP:        90,     // max additive speed bonus
   ENEMY_TOP_SPAWN_CHANCE:      0.65,   // fraction spawning from top edge
   ENEMY_LEFT_SPAWN_CHANCE:     0.82,   // cumulative fraction for left-side spawn
   ENEMY_SIDE_Y_FRACTION:       0.55,   // side enemies spawn in top this fraction of canvas
   ENEMY_SPAWN_MARGIN:          28,     // px kept from each side edge for top spawns
   ENEMY_BREACH_DECEL:          220,    // px/s² deceleration after breach line
-  ENEMY_CASTLE_DAMAGE:         20,     // HP removed from castle per normal enemy explosion
-  ENEMY_BASE_HP:               50,     // base hit points for a normal enemy
-  ENEMY_HP_TIME_SCALE:         1.8,    // +HP per second of play time (5× original 0.5 → tuned down a bit for playability)
-  ENEMY_HP_TIME_CAP:           350,    // max HP bonus from time scaling (4× original 80)
+  ENEMY_CASTLE_DAMAGE:         15,     // HP removed from castle per normal enemy explosion
+  ENEMY_BASE_HP:               40,     // base hit points for a normal enemy (reduced for early kills)
+  ENEMY_HP_TIME_SCALE:         1.0,    // +HP per second of play time (gentler curve)
+  ENEMY_HP_TIME_CAP:           250,    // max HP bonus from time scaling
   ENEMY_BREACH_EXPLOSION_MARGIN: 5,    // px above castle floor for breach explosion
 
   // ── Global speed multiplier ramp ───────────────────────────────────────────
   // On top of additive bonus; creates late-game escalation
   ENEMY_SPEED_MULT_START:      1.0,   // multiplier at t=0
-  ENEMY_SPEED_MULT_MAX:        2.0,   // maximum multiplier (reached at RAMP_TIME)
-  ENEMY_SPEED_MULT_RAMP_TIME:  120,   // seconds to reach max (2× faster than before)
+  ENEMY_SPEED_MULT_MAX:        1.6,   // maximum multiplier (reduced ceiling)
+  ENEMY_SPEED_MULT_RAMP_TIME:  300,   // seconds to reach max — 5 min (gives player time to upgrade)
 
   // ── Enemy visual ───────────────────────────────────────────────────────────
   ENEMY_HP_BAR_H:   4,  // height of HP bar above enemy (px)
@@ -183,7 +183,7 @@ export const CFG = {
 
   // ── Boss system ────────────────────────────────────────────────────────────
   // Two mechanics: (1) phase-2 shield at 50% HP, (2) periodic charge dash.
-  BOSS_FIRST_TIME:          120,   // first boss at 2:00 (seconds)
+  BOSS_FIRST_TIME:          180,   // first boss at 3:00 (seconds) — gives player time to upgrade
   BOSS_PERIOD:              180,   // new boss every 3 min after last spawn
   BOSS_RADIUS:               48,   // boss circle radius (px)
   BOSS_HP_BASE:             1000,  // HP of the first boss
