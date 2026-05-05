@@ -309,9 +309,6 @@ function resetRun() {
   state.tierNextTime  = CFG.TIER_FIRST_TIME
   state.notification  = null
 
-  state.devTimewarp = false
-  state.devMagnet   = false
-
   state.turret.x           = world.w / 2
   state.turret.vx          = 0
   state.turret.hp          = CFG.TURRET_MAX_HP
