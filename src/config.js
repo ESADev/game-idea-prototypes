@@ -183,8 +183,8 @@ export const CFG = {
 
   // ── Boss system ────────────────────────────────────────────────────────────
   // Two mechanics: (1) phase-2 shield at 50% HP, (2) periodic charge dash.
-  BOSS_FIRST_TIME:          180,   // first boss at 3:00 (seconds) — gives player time to upgrade
-  BOSS_PERIOD:              180,   // new boss every 3 min after last spawn
+  BOSS_FIRST_TIME:          120,   // first boss at 2:00 (seconds)
+  BOSS_PERIOD:              180,   // new boss every 3 min (2, 5, 8...)
   BOSS_RADIUS:               48,   // boss circle radius (px)
   BOSS_HP_BASE:             1000,  // HP of the first boss
   BOSS_HP_PER_WAVE:          600,  // additional HP per subsequent boss
@@ -207,9 +207,13 @@ export const CFG = {
   // ── Horde system ───────────────────────────────────────────────────────────
   // Flood of enemies for a fixed duration; spawn interval overrides normal rate.
   HORDE_FIRST_TIME:      180,   // first horde at 3:00 (seconds)
-  HORDE_PERIOD:          180,   // horde every 3 min after last trigger
-  HORDE_DURATION:         18,   // seconds the horde lasts
-  HORDE_SPAWN_INTERVAL:  0.10,  // enemy spawn interval during horde (10/s)
+  HORDE_PERIOD:          180,   // horde every 3 min (3, 6, 9...)
+  HORDE_DURATION:         25,   // seconds the horde lasts (prolonged)
+  HORDE_SPAWN_INTERVAL:  0.20,  // enemy spawn interval during horde (reduced intensity)
+
+  // ── Developer tools ────────────────────────────────────────────────────────
+  DEV_ENABLED:       true,  // show dev button in menu
+  DEV_TIMEWARP_MULT: 5.0,   // speed multiplier for timewarp
 
   // ── Notification overlay ───────────────────────────────────────────────────
   NOTIF_DURATION:  3.2,  // seconds notification stays visible

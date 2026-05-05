@@ -161,9 +161,13 @@ const state = {
   bossNextTime:  CFG.BOSS_FIRST_TIME,
   bossCount:     0,                  // bosses spawned this run (drives HP scaling)
   horde:         { active: false, timer: 0, nextTime: CFG.HORDE_FIRST_TIME },
+  lastEventTime: 0,
   enemyTier:     0,                  // current tier (increments at TIER_FIRST_TIME + k*TIER_PERIOD)
   tierNextTime:  CFG.TIER_FIRST_TIME,
   notification:  null,               // { text, color, timer } or null
+
+  devTimewarp:   false,
+  devMagnet:     false,
 
   turret: {
     x:           world.w / 2,
@@ -300,9 +304,13 @@ function resetRun() {
   state.bossNextTime  = CFG.BOSS_FIRST_TIME
   state.bossCount     = 0
   state.horde         = { active: false, timer: 0, nextTime: CFG.HORDE_FIRST_TIME }
+  state.lastEventTime = 0
   state.enemyTier     = 0
   state.tierNextTime  = CFG.TIER_FIRST_TIME
   state.notification  = null
+
+  state.devTimewarp = false
+  state.devMagnet   = false
 
   state.turret.x           = world.w / 2
   state.turret.vx          = 0
@@ -596,9 +604,11 @@ function updateCrystals(dt) {
 
   for (let i = state.crystalPickups.length - 1; i >= 0; i--) {
     const c = state.crystalPickups[i]
-    if (state.inRunUpgrades.magnet > 0) {
-      c.x  += (tx - c.x) * CFG.CRYSTAL_MAGNET_PULL * dt
+    if (state.inRunUpgrades.magnet > 0 || state.devMagnet) {
+      const pull = state.devMagnet ? 15 : CFG.CRYSTAL_MAGNET_PULL
+      c.x  += (tx - c.x) * pull * dt
       c.vy  = Math.min(c.vy + CFG.CRYSTAL_MAGNET_ACCEL * dt, CFG.CRYSTAL_MAGNET_MAX_VY)
+      if (state.devMagnet) c.y += (ty - c.y) * pull * dt
     }
     c.y += c.vy * dt
 
@@ -866,25 +876,19 @@ function drawBoss() {
 // ─────────────────────────────────────────────────────────────────────────────
 //  Horde system
 // ─────────────────────────────────────────────────────────────────────────────
-function startHorde() {
-  state.horde.active    = true
-  state.horde.timer     = CFG.HORDE_DURATION
-  state.horde.nextTime += CFG.HORDE_PERIOD
-  triggerNotification('💀 SÜRÜ SALDIRISI!', '#ef4444')
-}
 function drawHordeBanner() {
   if (!state.horde.active) return
   const alpha = Math.min(1, state.horde.timer / 1.0) * 0.7
   ctx.save()
   ctx.globalAlpha = alpha
   ctx.fillStyle   = '#7f1d1d'
-  ctx.fillRect(0, 32, world.w, 22)
+  ctx.fillRect(0, 85, world.w, 22)
   ctx.globalAlpha = Math.min(1, state.horde.timer / 1.0)
   ctx.fillStyle   = '#fca5a5'
   ctx.font        = 'bold 12px Inter, system-ui'
   ctx.textAlign   = 'center'
   ctx.textBaseline= 'middle'
-  ctx.fillText(`⚔ SÜRÜ — ${Math.ceil(state.horde.timer)}s`, world.w / 2, 43)
+  ctx.fillText(`⚔ SÜRÜ — ${Math.ceil(state.horde.timer)}s`, world.w / 2, 96)
   ctx.textBaseline= 'alphabetic'
   ctx.textAlign   = 'left'
   ctx.restore()
@@ -897,12 +901,14 @@ function checkSchedule() {
   // Boss
   if (state.boss === null && state.time >= state.bossNextTime) {
     spawnBoss()
+    state.lastEventTime = state.time
     state.bossNextTime = state.time + CFG.BOSS_PERIOD  // next boss PERIOD after this spawn
     state.bossCount++
     triggerNotification('⚔ PATRON GELİYOR!', '#f97316')
   }
   // Horde
   if (!state.horde.active && state.time >= state.horde.nextTime) {
+    state.lastEventTime = state.time
     startHorde()
   }
   // Enemy tier upgrade
@@ -1359,6 +1365,11 @@ function drawMenuScreen() {
   canvasBtns.menuShop = drawCanvasButton(world.w / 2, Math.round(world.h * CFG.MENU_SHOP_Y_FRAC),
     CFG.MENU_SHOP_BTN_W, CFG.MENU_SHOP_BTN_H, '⚙  YÜKSELTMELER', '#1d4ed8', '#bfdbfe', CFG.MENU_SHOP_BTN_FONT)
 
+  if (CFG.DEV_ENABLED) {
+    canvasBtns.menuDev = drawCanvasButton(world.w / 2, Math.round(world.h * 0.95),
+      200, 30, `DEV: ${state.devTimewarp ? 'ON' : 'OFF'}`, '#475569', '#cbd5e1', 12)
+  }
+
   ctx.fillStyle = '#475569'
   ctx.font      = `${CFG.MENU_TIP_FONT}px Inter, system-ui, sans-serif`
   ctx.fillText('Bas + Sürükle ile topçuyu hareket ettir', world.w / 2, Math.round(world.h * CFG.MENU_TIP1_Y_FRAC))
@@ -1533,6 +1544,7 @@ function drawPlayingScreen() {
   // Crystal and ammo bars on top
   drawCrystalBar()
   drawAmmoBar()
+  drawEventProgressBar()
   drawHordeBanner()
   drawNotification()
 }
@@ -1555,9 +1567,58 @@ function draw() {
 // ─────────────────────────────────────────────────────────────────────────────
 let last = performance.now()
 
+function formatTime(s) {
+  const m = Math.floor(s / 60)
+  const sec = Math.floor(s % 60)
+  return `${m}:${sec.toString().padStart(2, '0')}`
+}
+
+function drawEventProgressBar() {
+  const nextEventTime = Math.min(state.bossNextTime, state.horde.nextTime)
+  const isBossNext    = state.bossNextTime <= state.horde.nextTime
+  const totalNeeded   = nextEventTime - state.lastEventTime
+  const progress      = totalNeeded > 0 ? (state.time - state.lastEventTime) / totalNeeded : 0
+  const fill          = Math.max(0, Math.min(1, progress))
+
+  const barH   = 12
+  const barY   = 60
+  const margin = 40
+  const barX   = margin
+  const barW   = world.w - margin * 2
+
+  // Background
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.8)'
+  ctx.fillRect(barX, barY, barW, barH)
+
+  // Fill
+  const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0)
+  if (isBossNext) {
+    grad.addColorStop(0, '#7c3aed')
+    grad.addColorStop(1, '#a78bfa')
+  } else {
+    grad.addColorStop(0, '#ef4444')
+    grad.addColorStop(1, '#f87171')
+  }
+  ctx.fillStyle = grad
+  ctx.fillRect(barX, barY, barW * fill, barH)
+
+  // Border
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)'
+  ctx.strokeRect(barX, barY, barW, barH)
+
+  // Labels
+  ctx.fillStyle = '#f1f5f9'
+  ctx.font      = 'bold 12px Inter, system-ui'
+  ctx.textAlign = 'center'
+  ctx.fillText(`${isBossNext ? '👑 PATRON' : '💀 SÜRÜ'} YAKLAŞIYOR — ${formatTime(state.time)}`, world.w / 2, barY - 10)
+  ctx.textAlign = 'left'
+}
+
 function loop(now) {
-  const dt = Math.min(CFG.LOOP_DT_CAP, (now - last) / 1000)
+  let dt = Math.min(CFG.LOOP_DT_CAP, (now - last) / 1000)
   last = now
+
+  if (state.devTimewarp) dt *= CFG.DEV_TIMEWARP_MULT
 
   if (state.screen === SCREEN.MENU || state.screen === SCREEN.END) {
     draw(); requestAnimationFrame(loop); return
@@ -1644,6 +1705,11 @@ function handleCanvasTap(cx, cy) {
   if (state.screen === SCREEN.MENU) {
     if (hitTest(canvasBtns.menuPlay, cx, cy)) { startCountdown(); return true }
     if (hitTest(canvasBtns.menuShop, cx, cy)) { openShop();       return true }
+    if (CFG.DEV_ENABLED && hitTest(canvasBtns.menuDev, cx, cy)) {
+      state.devTimewarp = !state.devTimewarp
+      state.devMagnet   = state.devTimewarp
+      return true
+    }
   }
   if (state.screen === SCREEN.END) {
     if (hitTest(canvasBtns.endRestart,  cx, cy)) { startCountdown(); return true }
