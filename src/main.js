@@ -708,8 +708,14 @@ function updateCoins(dt) {
 // ─────────────────────────────────────────────────────────────────────────────
 //  Notification
 // ─────────────────────────────────────────────────────────────────────────────
-function triggerNotification(text, color) {
-  state.notification = { text, color, timer: CFG.NOTIF_DURATION }
+function triggerNotification(text, color, opts = {}) {
+  state.notification = {
+    text,
+    color,
+    timer: opts.duration ?? CFG.NOTIF_DURATION,
+    font: opts.font ?? CFG.NOTIF_FONT,
+    yFrac: opts.yFrac ?? CFG.NOTIF_Y_FRAC,
+  }
 }
 function updateNotification(dt) {
   if (state.notification) {
@@ -721,16 +727,16 @@ function drawNotification() {
   const n = state.notification
   if (!n || n.timer <= 0) return
   const alpha = Math.min(1, n.timer / 0.4)  // fade out last 0.4s
-  const y     = Math.round(world.h * CFG.NOTIF_Y_FRAC)
+  const y     = Math.round(world.h * n.yFrac)
   ctx.save()
   ctx.globalAlpha  = alpha
+  ctx.font         = `bold ${n.font}px Inter, system-ui, sans-serif`
   ctx.fillStyle    = 'rgba(0,0,0,0.55)'
   const tw         = ctx.measureText(n.text).width + 40
-  ctx.fillRect(world.w / 2 - tw / 2, y - CFG.NOTIF_FONT - 4, tw, CFG.NOTIF_FONT + 16)
+  ctx.fillRect(world.w / 2 - tw / 2, y - n.font - 8, tw, n.font + 18)
   ctx.shadowBlur   = 18
   ctx.shadowColor  = n.color
   ctx.fillStyle    = n.color
-  ctx.font         = `bold ${CFG.NOTIF_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign    = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(n.text, world.w / 2, y)
@@ -1764,8 +1770,12 @@ function loop(now) {
     if (state.fireTimer <= 0) {
       state.fireTimer = 1 / getFireRate()
       if ((mouseDown || keys.shoot) && state.ammo >= CFG.AMMO_COST_PER_VOLLEY) {
+        const prevAmmo = state.ammo
         fireBullets()
         state.ammo -= CFG.AMMO_COST_PER_VOLLEY
+        if (prevAmmo > 0 && state.ammo <= 0) {
+          triggerNotification('🚫 MERMİ BİTTİ!', '#ef4444', { yFrac: 0.5, font: 44, duration: 1.2 })
+        }
       }
     }
     updateAmmo(dt)
