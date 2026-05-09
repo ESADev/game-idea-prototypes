@@ -728,12 +728,14 @@ function drawNotification() {
   if (!n || n.timer <= 0) return
   const alpha = Math.min(1, n.timer / 0.4)  // fade out last 0.4s
   const y     = Math.round(world.h * n.yFrac)
+  const bgPadTop = 8
+  const bgPadBottom = 18
   ctx.save()
   ctx.globalAlpha  = alpha
   ctx.font         = `bold ${n.font}px Inter, system-ui, sans-serif`
   ctx.fillStyle    = 'rgba(0,0,0,0.55)'
   const tw         = ctx.measureText(n.text).width + 40
-  ctx.fillRect(world.w / 2 - tw / 2, y - n.font - 8, tw, n.font + 18)
+  ctx.fillRect(world.w / 2 - tw / 2, y - n.font - bgPadTop, tw, n.font + bgPadBottom)
   ctx.shadowBlur   = 18
   ctx.shadowColor  = n.color
   ctx.fillStyle    = n.color
