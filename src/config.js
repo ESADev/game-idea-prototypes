@@ -227,9 +227,11 @@ export const CFG = {
   DEV_TIMEWARP_MULT: 2.5,   // speed multiplier for timewarp
 
   // ── Notification overlay ───────────────────────────────────────────────────
-  NOTIF_DURATION:  3.2,  // seconds notification stays visible
-  NOTIF_FONT:       28,  // font size (px)
-  NOTIF_Y_FRAC:    0.38, // canvas-height fraction for notification center
+  NOTIF_DURATION:       3.2,  // seconds notification stays visible
+  NOTIF_FONT:            28,  // font size (px)
+  NOTIF_Y_FRAC:         0.38, // canvas-height fraction for notification center
+  NOTIF_BG_PAD_TOP:        8, // top padding for notification background (px)
+  NOTIF_BG_PAD_BOTTOM:    18, // bottom padding for notification background (px)
 
   // ── Castle ─────────────────────────────────────────────────────────────────
   CASTLE_MAX_HP:  300,
