@@ -12,43 +12,59 @@ const SCREEN = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', END: 
 const IN_RUN_UPGRADE_DEFS = [
   {
     key: 'fireRate',
-    label: '🔥 Atış Hızı',
-    desc: () => `Mevcut: ${getFireRate().toFixed(1)}/s → +${CFG.BULLET_FIRE_RATE_PER_LVL}/s`,
+    weight: () => CFG.WEIGHT_FIRE_RATE,
+    label: '🌧️ Mermi Yağmuru',
+    desc: () => {
+      const cur = getFireRate()
+      const next = cur * CFG.BULLET_FIRE_RATE_MULT
+      return `Saniyede edilen ateş miktarı ${cur.toFixed(1)}/s → +${((CFG.BULLET_FIRE_RATE_MULT - 1) * 100).toFixed(0)}%'a çıkar!`
+    },
   },
   {
     key: 'bulletDmg',
-    label: '💥 Mermi Hasarı',
-    desc: () => `Mevcut: ${getBulletDmg()} hasar → +${CFG.BULLET_DAMAGE_PER_LVL}`,
+    weight: () => CFG.WEIGHT_BULLET_DMG,
+    label: '💪 Mermi Gücü',
+    desc: () => {
+      const cur = getBulletDmg()
+      const next = Math.round(cur * CFG.BULLET_DAMAGE_MULT)
+      return `Mevcut: ${cur} hasar → +${((CFG.BULLET_DAMAGE_MULT - 1) * 100).toFixed(0)}%`
+    },
   },
   {
     key: 'pierce',
-    label: '🎯 Delici Mermi',
-    desc: () => `Mevcut: ${getPierceLevel()} geçiş → +1 geçiş`,
+    weight: () => CFG.WEIGHT_PIERCE,
+    label: '👻 Deler Geçer',
+    desc: () => `${getPierceLevel()} +1 delicilik geliştirmesi!`,
   },
   {
     key: 'shield',
-    label: '🛡 Kalkan',
-    desc: () => `Mevcut: ${state.inRunUpgrades.shield} yük → +${CFG.SHIELD_STACKS_PER_PICK} yük`,
+    weight: () => CFG.WEIGHT_SHIELD,
+    label: '🛡️ Ekstra Surlar',
+    desc: () => `${state.inRunUpgrades.shield} +${CFG.SHIELD_STACKS_PER_PICK} sur ekle!`,
   },
   {
     key: 'magnet',
-    label: '🧲 Mıknatıs',
-    desc: () => 'Kristaller topçuya çekilir (tek seferlik)',
+    weight: () => state.inRunUpgrades.magnet > 0 ? 0 : CFG.WEIGHT_MAGNET,
+    label: '🧲 Kristal Mıknatısı',
+    desc: () => 'Kristaller sana gelsin!',
   },
   {
     key: 'doubleGems',
-    label: '💎 Çift Taş',
-    desc: () => `Mevcut: ${state.inRunUpgrades.doubleGems} → %50 ile +1 taş`,
+    weight: () => CFG.WEIGHT_DOUBLE_GEMS,
+    label: '💎 Jeoloji Mühendisi',
+    desc: () => `${state.inRunUpgrades.doubleGems} => Daha çok, daha çok...`,
   },
   {
     key: 'bulletCount',
-    label: '🔫 Ekstra Mermi',
-    desc: () => `Mevcut: ${getTotalBullets()} mermi → +2 mermi (sağ+sol)`,
+    weight: () => CFG.WEIGHT_BULLET_COUNT,
+    label: '➕2️⃣ Çoklu Mermi',
+    desc: () => `Tek seferde atılan mermi: ${getTotalBullets()} +2 mermi, gerisini onlar düşünsün!`,
   },
   {
     key: 'ammoCapacity',
-    label: '🔋 Mermi Kapasitesi',
-    desc: () => `Mevcut: ${getMaxAmmo()} mermi → +${CFG.AMMO_CAPACITY_PER_UPGRADE} mermi`,
+    weight: () => CFG.WEIGHT_AMMO_CAPACITY,
+    label: '⛽ Şarjör Boyutu',
+    desc: () => `Toplam ${getMaxAmmo() + CFG.AMMO_CAPACITY_PER_UPGRADE} mermiye çık!`,
   },
 ]
 
@@ -59,9 +75,9 @@ const app = document.querySelector('#app')
 app.innerHTML = `
   <div class="layout">
     <div class="hud" id="main-hud">
-      <span id="money">💰 0</span>
-      <span id="crystals-hud">💎 0</span>
-      <span id="castle-hp-hud">🏰 Kale: 300</span>
+      <span id="money"></span>
+      <span id="crystals-hud"></span>
+      <span id="castle-hp-hud"></span>
     </div>
     <div class="canvas-wrap">
       <canvas id="game" width="540" height="960" aria-label="Oyun alanı"></canvas>
@@ -83,7 +99,17 @@ app.innerHTML = `
       <div id="upgrade-menu" class="upgrade-panel hidden" role="dialog" aria-modal="true">
         <h2 id="upgrade-menu-h2">Yükseltme Seç</h2>
         <div class="shop-actions" id="upgrade-choices"></div>
-        <button id="upgrade-skip" class="skip-btn">Geç</button>
+        <div class="rarity-legend">
+          <span class="legend-label">SIRADAN</span>
+          <div id="legend-bar" class="legend-bar"></div>
+          <span class="legend-label">NADİR</span>
+        </div>
+      </div>
+
+      <!-- Dev controls overlay -->
+      <div id="dev-controls" class="dev-controls hidden">
+        <label for="dev-timewarp-input">HIZ:</label>
+        <input type="number" id="dev-timewarp-input" step="0.5" min="0.1" max="20">
       </div>
     </div>
   </div>
@@ -108,7 +134,18 @@ const shopBackBtn       = document.querySelector('#shop-back')
 const upgradeMenuEl     = document.querySelector('#upgrade-menu')
 const upgradeMenuH2El   = document.querySelector('#upgrade-menu-h2')
 const upgradeChoicesEl  = document.querySelector('#upgrade-choices')
-const upgradeSkipBtn    = document.querySelector('#upgrade-skip')
+const legendBarEl       = document.querySelector('#legend-bar')
+const devControlsEl     = document.querySelector('#dev-controls')
+const devTimewarpInp    = document.querySelector('#dev-timewarp-input')
+
+// Initialize dev input
+if (devTimewarpInp) {
+  devTimewarpInp.value = CFG.DEV_TIMEWARP_MULT
+  devTimewarpInp.addEventListener('input', (e) => {
+    const val = parseFloat(e.target.value)
+    if (!isNaN(val) && val > 0) CFG.DEV_TIMEWARP_MULT = val
+  })
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  World + layout  (derived from canvas intrinsic size)
@@ -141,6 +178,8 @@ const state = {
   spawnTimer: 0,
   time: 0,
   countdownTimer: 0,
+  bestScore: 0,
+  isNewRecord: false,
 
   upgrades:          { fireRate: 0, bulletDmg: 0, pierce: 0, bulletCount: 0 },
   inRunUpgrades:     { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0, ammoCapacity: 0 },
@@ -184,12 +223,12 @@ const state = {
 //  Derived-value helpers
 // ─────────────────────────────────────────────────────────────────────────────
 function getFireRate() {
-  return CFG.BULLET_BASE_FIRE_RATE
-       + (state.upgrades.fireRate + state.inRunUpgrades.fireRate) * CFG.BULLET_FIRE_RATE_PER_LVL
+  const level = state.upgrades.fireRate + state.inRunUpgrades.fireRate
+  return CFG.BULLET_BASE_FIRE_RATE * Math.pow(CFG.BULLET_FIRE_RATE_MULT, level)
 }
 function getBulletDmg() {
-  return CFG.BULLET_BASE_DAMAGE
-       + (state.upgrades.bulletDmg + state.inRunUpgrades.bulletDmg) * CFG.BULLET_DAMAGE_PER_LVL
+  const level = state.upgrades.bulletDmg + state.inRunUpgrades.bulletDmg
+  return Math.round(CFG.BULLET_BASE_DAMAGE * Math.pow(CFG.BULLET_DAMAGE_MULT, level))
 }
 function getPierceLevel() {
   return CFG.BULLET_PIERCE_BASE + state.upgrades.pierce + state.inRunUpgrades.pierce
@@ -231,15 +270,19 @@ function saveUpgrades() {
 function loadUpgrades() {
   try {
     const raw = localStorage.getItem(CFG.STORAGE_KEY)
-    if (!raw) return
-    const parsed = JSON.parse(raw)
-    if (parsed?.upgrades) {
-      state.upgrades.fireRate    = Number(parsed.upgrades.fireRate)    || 0
-      state.upgrades.bulletDmg   = Number(parsed.upgrades.bulletDmg)   || 0
-      state.upgrades.pierce      = Number(parsed.upgrades.pierce)      || 0
-      state.upgrades.bulletCount = Number(parsed.upgrades.bulletCount) || 0
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed?.upgrades) {
+        state.upgrades.fireRate    = Number(parsed.upgrades.fireRate)    || 0
+        state.upgrades.bulletDmg   = Number(parsed.upgrades.bulletDmg)   || 0
+        state.upgrades.pierce      = Number(parsed.upgrades.pierce)      || 0
+        state.upgrades.bulletCount = Number(parsed.upgrades.bulletCount) || 0
+      }
+      state.money = Number(parsed?.money) || 0
     }
-    state.money = Number(parsed?.money) || 0
+
+    const bestRaw = localStorage.getItem(CFG.BEST_SCORE_KEY)
+    state.bestScore = bestRaw ? Number(bestRaw) : 0
   } catch { /* ignore broken saves */ }
 }
 
@@ -251,17 +294,23 @@ function goToMenu() {
   shopEl.classList.add('hidden')
   upgradeMenuEl.classList.add('hidden')
   mainHudEl.style.display = 'none'
+  if (devControlsEl) {
+    if (CFG.DEV_ENABLED) devControlsEl.classList.remove('hidden')
+    else devControlsEl.classList.add('hidden')
+  }
 }
 
 function openShop() {
   shopEl.classList.remove('hidden')
-  shopSummaryEl.textContent = `💰 Toplam Altın: ${state.money}`
+  shopSummaryEl.textContent = `💰 Bakiye: ${state.money}`
+  if (devControlsEl) devControlsEl.classList.add('hidden')
   renderShopButtons()
 }
 
 function startCountdown() {
   shopEl.classList.add('hidden')
   upgradeMenuEl.classList.add('hidden')
+  if (devControlsEl) devControlsEl.classList.add('hidden')
   resetRun()
   state.screen         = SCREEN.COUNTDOWN
   state.countdownTimer = CFG.COUNTDOWN_TIMER_START
@@ -276,7 +325,17 @@ function startPlaying() {
 function endRun() {
   state.screen = SCREEN.END
   upgradeMenuEl.classList.add('hidden')
+  if (devControlsEl) devControlsEl.classList.add('hidden')
   mainHudEl.style.display = 'none'
+
+  // Score tracking
+  const currentScore = Math.floor(state.time)
+  state.isNewRecord = currentScore > state.bestScore
+  if (state.isNewRecord) {
+    state.bestScore = currentScore
+    localStorage.setItem(CFG.BEST_SCORE_KEY, String(state.bestScore))
+  }
+
   saveUpgrades()
 }
 
@@ -321,16 +380,16 @@ function resetRun() {
 //  Damage helpers
 // ─────────────────────────────────────────────────────────────────────────────
 function applyTurretHit(dmg) {
-  if (state.inRunUpgrades.shield > 0) {
-    state.inRunUpgrades.shield -= 1
-    spawnExplosion(state.turret.x, state.turret.y, CFG.EXPLOSION_HIT_SHIELD_MAXR, true)
-  } else {
-    state.turret.hp          = Math.max(0, state.turret.hp - dmg)
-    state.turret.lastHitTime = state.time
-  }
+  state.turret.hp          = Math.max(0, state.turret.hp - dmg)
+  state.turret.lastHitTime = state.time
 }
 function applyCastleDamage(dmg) {
-  state.castle.hp = Math.max(0, state.castle.hp - dmg)
+  if (state.inRunUpgrades.shield > 0) {
+    state.inRunUpgrades.shield -= 1
+    // Optional: spawn shield effect on castle if desired
+  } else {
+    state.castle.hp = Math.max(0, state.castle.hp - dmg)
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -557,8 +616,11 @@ function handleBulletEnemyCollisions() {
         state.money    += 1
 
         const base  = crystalDropCount()
-        const count = (state.inRunUpgrades.doubleGems > 0 && Math.random() < CFG.DOUBLE_GEMS_CHANCE)
-                      ? base + 1 : base
+        let bonus = 0
+        for (let dg = 0; dg < state.inRunUpgrades.doubleGems; dg++) {
+          if (Math.random() < CFG.DOUBLE_GEMS_CHANCE) bonus++
+        }
+        const count = base + bonus
         for (let c = 0; c < count; c++) {
           state.crystalPickups.push({
             x:  e.x + (Math.random() - 0.5) * CFG.CRYSTAL_SPREAD_X,
@@ -713,7 +775,7 @@ function updateBoss(dt) {
     b.phase       = 2
     b.shieldActive = true
     b.shieldTimer  = CFG.BOSS_SHIELD_DURATION
-    triggerNotification('🛡 PATRON — FAZE 2!', '#60a5fa')
+    triggerNotification('🛡 BOSS — 2. AŞAMA!', '#60a5fa')
   }
   if (b.shieldActive) {
     b.shieldTimer -= dt
@@ -723,7 +785,7 @@ function updateBoss(dt) {
   // Enrage after too long alive
   if (!b.enraged && b.aliveTimer >= CFG.BOSS_ENRAGE_TIME) {
     b.enraged = true
-    triggerNotification('😡 PATRON ÖFKELI!', '#ef4444')
+    triggerNotification('😡 BOSS ÖFKELI!', '#ef4444')
   }
 
   // Descend to hover height
@@ -801,7 +863,7 @@ function handleBossBulletCollisions() {
       state.money      += CFG.BOSS_MONEY_REWARD
       state.bossNextTime = state.time + CFG.BOSS_PERIOD
       state.boss         = null
-      triggerNotification('💀 PATRON YENİLDİ!', '#22c55e')
+      triggerNotification('💀 BOSS YENİLDİ!', '#22c55e')
       return
     }
 
@@ -866,7 +928,7 @@ function drawBoss() {
   ctx.fillStyle    = '#e9d5ff'
   ctx.font         = 'bold 10px Inter, system-ui'
   ctx.textAlign    = 'center'
-  ctx.fillText(`PATRON  ${Math.ceil(b.hp)} / ${b.maxHp}`, b.x, barY - 3)
+  ctx.fillText(`BOSS  ${Math.ceil(b.hp)} / ${b.maxHp}`, b.x, barY - 3)
   ctx.textAlign    = 'left'
 }
 
@@ -891,17 +953,24 @@ function drawHordeBanner() {
   ctx.restore()
 }
 
+function startHorde() {
+  state.horde.active   = true
+  state.horde.timer    = CFG.HORDE_DURATION
+  state.horde.nextTime = state.time + CFG.HORDE_PERIOD
+  triggerNotification('⚔ SÜRÜ SALDIRISI!', '#ef4444')
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Schedule check (boss / horde / tier)
 // ─────────────────────────────────────────────────────────────────────────────
 function checkSchedule() {
-  // Boss
+  // BossBOSS
   if (state.boss === null && state.time >= state.bossNextTime) {
     spawnBoss()
     state.lastEventTime = state.time
     state.bossNextTime = state.time + CFG.BOSS_PERIOD  // next boss PERIOD after this spawn
     state.bossCount++
-    triggerNotification('⚔ PATRON GELİYOR!', '#f97316')
+    triggerNotification('⚔ BOSS GELİYOR!', '#f97316')
   }
   // Horde
   if (!state.horde.active && state.time >= state.horde.nextTime) {
@@ -912,7 +981,7 @@ function checkSchedule() {
   if (state.time >= state.tierNextTime) {
     state.enemyTier++
     state.tierNextTime += CFG.TIER_PERIOD
-    triggerNotification(`⬆ DÜŞMAN YÜKSELTME — TİER ${state.enemyTier}`, '#eab308')
+    triggerNotification(`⬆ YENİ DÜŞMANLAR — AŞAMA ${state.enemyTier}`, '#eab308')
   }
 }
 
@@ -922,23 +991,67 @@ function checkSchedule() {
 let upgradePaused     = false
 let currentUpgradeCost = 0  // cost at the moment the menu was opened
 
+function getUpgradeRarityColor(weight) {
+  const weights = IN_RUN_UPGRADE_DEFS.map(u => u.weight()).filter(w => w > 0)
+  const minW = Math.min(...weights)
+  const maxW = Math.max(...weights)
+  
+  // t=0 (rare/minW), t=1 (common/maxW)
+  const t = (maxW === minW) ? 1 : Math.max(0, Math.min(1, (weight - minW) / (maxW - minW)))
+
+  // Linear interpolation across all channels
+  const h = CFG.RARITY_RARE_HUE   - t * (CFG.RARITY_RARE_HUE   - CFG.RARITY_COMMON_HUE)
+  const s = CFG.RARITY_RARE_SAT   - t * (CFG.RARITY_RARE_SAT   - CFG.RARITY_COMMON_SAT)
+  const l = CFG.RARITY_RARE_LIGHT - t * (CFG.RARITY_RARE_LIGHT - CFG.RARITY_COMMON_LIGHT)
+
+  return `hsl(${h}, ${s}%, ${l}%)`
+}
+
 function showUpgradeMenu() {
   currentUpgradeCost = getNextUpgradeCost()
-  upgradeMenuH2El.textContent = `Yükseltme Seç — 💎 ${currentUpgradeCost}`
+  upgradeMenuH2El.textContent = `Seviye Atla! (Sv. ${state.inRunUpgradesCount + 1}) 💎 ${currentUpgradeCost}`
   upgradePaused = true
   upgradeMenuEl.classList.remove('hidden')
   upgradeChoicesEl.innerHTML = ''
 
-  const pool = IN_RUN_UPGRADE_DEFS.filter(u => {
-    if (u.key === 'magnet' && state.inRunUpgrades.magnet > 0) return false
-    return true
-  })
-  const choices = [...pool].sort(() => Math.random() - 0.5).slice(0, 3)
+  // Weighted selection
+  const choices = []
+  const available = [...IN_RUN_UPGRADE_DEFS]
+  
+  for (let i = 0; i < 3; i++) {
+    if (available.length === 0) break
+    
+    let totalWeight = 0
+    available.forEach(u => { totalWeight += u.weight() })
+    
+    if (totalWeight <= 0) break
+
+    let roll = Math.random() * totalWeight
+    let cumulative = 0
+    for (let j = 0; j < available.length; j++) {
+      cumulative += available[j].weight()
+      if (roll <= cumulative) {
+        choices.push(available[j])
+        available.splice(j, 1) // prevent duplicate choices in same menu
+        break
+      }
+    }
+  }
 
   for (const upg of choices) {
     const btn = document.createElement('button')
     btn.className = 'shop-btn upgrade-choice-btn'
-    btn.innerHTML = `<span class="upg-label">${upg.label}</span><span class="upg-desc">${upg.desc()}</span>`
+    const color = getUpgradeRarityColor(upg.weight())
+    
+    // Solid background using exact rarity color
+    btn.style.backgroundColor = color
+    btn.style.backgroundImage = 'none' // Override any CSS gradients
+    btn.style.borderColor     = '#ffffff44'
+    btn.style.borderWidth     = '2px'
+    btn.style.borderStyle     = 'solid'
+    btn.style.boxShadow       = `0 4px 15px ${color}66`
+    
+    btn.innerHTML = `<span class="upg-label" style="color:#fff; text-shadow: 0 1px 2px rgba(0,0,0,0.5)">${upg.label}</span><span class="upg-desc" style="color:rgba(255,255,255,0.8)">${upg.desc()}</span>`
     btn.addEventListener('click', () => {
       applyInRunUpgrade(upg.key)
       state.crystals           = Math.max(0, state.crystals - currentUpgradeCost)
@@ -955,22 +1068,14 @@ function applyInRunUpgrade(key) {
   else                  state.inRunUpgrades[key]   += 1
 }
 
-upgradeSkipBtn.addEventListener('click', () => {
-  // Skipping still counts as an upgrade attempt — cost is paid, curve advances
-  state.crystals           = Math.max(0, state.crystals - currentUpgradeCost)
-  state.inRunUpgradesCount += 1
-  upgradeMenuEl.classList.add('hidden')
-  upgradePaused = false
-})
-
 // ─────────────────────────────────────────────────────────────────────────────
 //  HUD
 // ─────────────────────────────────────────────────────────────────────────────
 function updateHUD() {
-  moneyEl.textContent       = `💰 ${state.money}`
-  crystalsHudEl.textContent = `💎 ${state.crystals}`
+  moneyEl.textContent       = ``
+  crystalsHudEl.textContent = ``
   const cPct = state.castle.hp / CFG.CASTLE_MAX_HP
-  castleHpHudEl.textContent = `🏰 Kale: ${Math.ceil(state.castle.hp)}`
+  castleHpHudEl.textContent = ``
   castleHpHudEl.style.color = cPct <= CFG.HUD_HP_LOW ? '#ef4444' : cPct <= CFG.HUD_HP_MID ? '#f97316' : ''
 }
 
@@ -984,10 +1089,10 @@ function renderShopButtons() {
   const dc = getCost('bulletDmg')
   const pc = getCost('pierce')
   const bc = getCost('bulletCount')
-  buyFireRateBtn.innerHTML    = mkShopBtnHTML('🔥', 'Atış Hızı',    state.upgrades.fireRate,    `+${CFG.BULLET_FIRE_RATE_PER_LVL} atış/sn`, fc)
-  buyBulletDmgBtn.innerHTML   = mkShopBtnHTML('💥', 'Mermi Hasarı', state.upgrades.bulletDmg,   `+${CFG.BULLET_DAMAGE_PER_LVL} hasar`,      dc)
-  buyPierceBtn.innerHTML      = mkShopBtnHTML('🎯', 'Delici Mermi', state.upgrades.pierce,      '+1 geçiş',                                  pc)
-  buyBulletCountBtn.innerHTML = mkShopBtnHTML('🔫', 'Mermi Sayısı', state.upgrades.bulletCount, '+2 mermi (sağ+sol)',                         bc)
+  buyFireRateBtn.innerHTML    = mkShopBtnHTML('🌧️', 'Mermi Yağmuru', state.upgrades.fireRate,    `+%${((CFG.BULLET_FIRE_RATE_MULT - 1) * 100).toFixed(0)} hız`, fc)
+  buyBulletDmgBtn.innerHTML   = mkShopBtnHTML('💪', 'Mermi Gücü',    state.upgrades.bulletDmg,   `+%${((CFG.BULLET_DAMAGE_MULT - 1) * 100).toFixed(0)} hasar`, dc)
+  buyPierceBtn.innerHTML      = mkShopBtnHTML('👻', 'Deler Geçer',   state.upgrades.pierce,      '+1 delici',                                  pc)
+  buyBulletCountBtn.innerHTML = mkShopBtnHTML('➕2️⃣', 'Çoklu Mermi',  state.upgrades.bulletCount, '+2 mermi',                                   bc)
   buyFireRateBtn.disabled    = state.money < fc
   buyBulletDmgBtn.disabled   = state.money < dc
   buyPierceBtn.disabled      = state.money < pc
@@ -1001,11 +1106,11 @@ function drawCastle() {
   const cY = world.h - CFG.CASTLE_H
   const cW = world.w
 
-  ctx.fillStyle = '#1e1050'
+  ctx.fillStyle = '#310a8e'
   ctx.fillRect(0, cY, cW, CFG.CASTLE_H)
 
   // Brick grid
-  ctx.strokeStyle = '#2d1a70'
+  ctx.strokeStyle = '#4c17c5'
   ctx.lineWidth   = 1
   for (let row = 0; row < CFG.CASTLE_GRID_ROWS; row++) {
     const rowY = cY + CFG.CASTLE_GRID_ROW_Y + row * CFG.CASTLE_GRID_ROW_H
@@ -1015,19 +1120,19 @@ function drawCastle() {
   }
 
   // Main-wall crenellations
-  ctx.fillStyle = '#251560'
+  ctx.fillStyle = '#410fb3'
   const period  = CFG.CASTLE_BATT_W + CFG.CASTLE_BATT_GAP
   for (let bx = CFG.CASTLE_BATT_X_START; bx < cW - CFG.CASTLE_BATT_W; bx += period)
     ctx.fillRect(bx, cY - CFG.CASTLE_BATT_H, CFG.CASTLE_BATT_W, CFG.CASTLE_BATT_H)
 
   // Corner towers
   const tW = CFG.CASTLE_TOWER_W, tH = CFG.CASTLE_H + CFG.CASTLE_TOWER_EXTRA_H
-  ctx.fillStyle = '#180e45'
+  ctx.fillStyle = '#23076e'
   ctx.fillRect(0,       cY - CFG.CASTLE_TOWER_EXTRA_H, tW, tH)
   ctx.fillRect(cW - tW, cY - CFG.CASTLE_TOWER_EXTRA_H, tW, tH)
 
   // Tower crenellations
-  ctx.fillStyle = '#251560'
+  ctx.fillStyle = '#410fb3'
   const tPeriod = CFG.CASTLE_TOWER_BATT_W + CFG.CASTLE_TOWER_BATT_GAP
   for (let tx2 = CFG.CASTLE_TOWER_BATT_X_START; tx2 < tW - CFG.CASTLE_TOWER_BATT_W; tx2 += tPeriod) {
     ctx.fillRect(tx2,          cY - CFG.CASTLE_TOWER_EXTRA_H - CFG.CASTLE_TOWER_BATT_H, CFG.CASTLE_TOWER_BATT_W, CFG.CASTLE_TOWER_BATT_H)
@@ -1035,14 +1140,14 @@ function drawCastle() {
   }
 
   // Tower windows
-  ctx.fillStyle = '#7c3aed44'
+  ctx.fillStyle = '#b780ff88'
   const wW = CFG.CASTLE_WINDOW_W, wH = CFG.CASTLE_WINDOW_H
   ctx.fillRect(tW / 2 - wW / 2,           cY - CFG.CASTLE_WINDOW_Y_OFFSET, wW, wH)
   ctx.fillRect(cW - tW + tW / 2 - wW / 2, cY - CFG.CASTLE_WINDOW_Y_OFFSET, wW, wH)
 
   // Gate
   const gateW = CFG.CASTLE_GATE_W, gX = cW / 2 - gateW / 2
-  ctx.fillStyle = '#0d0830'
+  ctx.fillStyle = '#0a052e'
   ctx.fillRect(gX, cY, gateW, CFG.CASTLE_GATE_H)
   ctx.beginPath()
   ctx.arc(cW / 2, cY, gateW / 2, Math.PI, 0)
@@ -1070,7 +1175,32 @@ function drawCastle() {
   ctx.fillStyle    = '#a78bfa'
   ctx.font         = `bold ${CFG.CASTLE_HP_LABEL_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign    = 'center'
-  ctx.fillText(`🏰 KOZMİK KALE  ${Math.ceil(state.castle.hp)} / ${CFG.CASTLE_MAX_HP}`, cW / 2, cY + CFG.CASTLE_HP_LABEL_Y_OFFSET)
+  ctx.fillText(`🏰 KALE  ${Math.ceil(state.castle.hp)} / ${CFG.CASTLE_MAX_HP}`, cW / 2, cY + CFG.CASTLE_HP_LABEL_Y_OFFSET)
+  ctx.textBaseline = 'alphabetic'
+
+  // Castle Shield
+  if (state.inRunUpgrades.shield > 0) {
+    ctx.save()
+    ctx.strokeStyle = '#60a5fa'
+    ctx.lineWidth   = 4
+    ctx.shadowBlur  = 20
+    ctx.shadowColor = '#60a5fa'
+    
+    // Full width horizontal shield line
+    const shieldY = cY - CFG.CASTLE_BATT_H - 10
+    ctx.beginPath()
+    ctx.moveTo(0, shieldY)
+    ctx.lineTo(cW, shieldY)
+    ctx.stroke()
+    
+    // Shield count on the left under the line
+    ctx.fillStyle = '#fff'
+    ctx.font      = 'bold 14px Inter, system-ui, sans-serif'
+    ctx.textAlign = 'left'
+    ctx.fillText(`${state.inRunUpgrades.shield} Sur`, 10, shieldY + 18)
+    ctx.restore()
+  }
+
   ctx.textAlign = 'left'
 }
 
@@ -1120,7 +1250,7 @@ function drawCrystalBar() {
   ctx.font         = `bold ${barH - 4}px Inter, system-ui, sans-serif`
   ctx.textAlign    = 'center'
   ctx.textBaseline = 'middle'
-  ctx.fillText(`💎 ${state.crystals} / ${cost}  —  YÜKSELTME`, world.w / 2, barY + barH / 2)
+  ctx.fillText(`💎 ${state.crystals} / ${cost}  —  SEVİYE ${state.inRunUpgradesCount + 1}`, world.w / 2, barY + barH / 2)
   ctx.textBaseline = 'alphabetic'
   ctx.textAlign    = 'left'
 }
@@ -1204,22 +1334,6 @@ function drawTurret() {
   ctx.fillStyle = hpPct > CFG.HUD_HP_MID ? '#22c55e' : hpPct > CFG.HUD_HP_LOW ? '#f97316' : '#ef4444'
   ctx.fillRect(hpBarX, hpBarY, hpBarW * hpPct, CFG.TURRET_HP_BAR_H)
 
-  // Shield glow
-  if (state.inRunUpgrades.shield > 0) {
-    ctx.save()
-    ctx.strokeStyle = '#60a5fa'
-    ctx.lineWidth   = CFG.TURRET_SHIELD_LINE_W
-    ctx.shadowBlur  = CFG.TURRET_SHIELD_SHADOW_BLUR
-    ctx.shadowColor = '#60a5fa'
-    ctx.strokeRect(
-      t.x - tw / 2 - CFG.TURRET_SHIELD_INSET,
-      t.y - th / 2 - CFG.TURRET_SHIELD_INSET,
-      tw + CFG.TURRET_SHIELD_INSET * 2,
-      th + CFG.TURRET_SHIELD_INSET * 2
-    )
-    ctx.restore()
-  }
-
   // Barrel
   ctx.save()
   ctx.shadowBlur  = CFG.TURRET_BARREL_SHADOW_BLUR
@@ -1229,21 +1343,11 @@ function drawTurret() {
   ctx.restore()
 
   // Base body
-  ctx.fillStyle = state.inRunUpgrades.shield > 0 ? '#93c5fd' : '#7dd3fc'
+  ctx.fillStyle = '#7dd3fc'
   ctx.fillRect(t.x - tw / 2, t.y - th / 2, tw, th)
   // Accent stripe
   ctx.fillStyle = '#0ea5e9'
   ctx.fillRect(t.x - tw / 2, t.y, tw, CFG.TURRET_ACCENT_STRIPE_H)
-
-  if (state.inRunUpgrades.shield > 0) {
-    ctx.fillStyle    = '#fff'
-    ctx.font         = `bold ${CFG.TURRET_SHIELD_FONT}px Inter, system-ui, sans-serif`
-    ctx.textAlign    = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(`🛡${state.inRunUpgrades.shield}`, t.x, t.y)
-    ctx.textBaseline = 'alphabetic'
-    ctx.textAlign    = 'left'
-  }
 }
 
 function drawEnemies() {
@@ -1336,43 +1440,48 @@ function drawMenuScreen() {
   ctx.fillStyle   = '#c4b5fd'
   ctx.textAlign   = 'center'
   ctx.font        = `bold ${CFG.MENU_TITLE_FONT1}px Inter, system-ui, sans-serif`
-  ctx.fillText('TOPÇU', world.w / 2, titleY)
+  ctx.fillText('MEGA', world.w / 2, titleY)
   ctx.font        = `bold ${CFG.MENU_TITLE_FONT2}px Inter, system-ui, sans-serif`
-  ctx.fillText('SURVIVORS', world.w / 2, titleY + CFG.MENU_TITLE_LINE_GAP)
+  ctx.fillText('PONG', world.w / 2, titleY + CFG.MENU_TITLE_LINE_GAP)
   ctx.restore()
 
   ctx.fillStyle = '#94a3b8'
   ctx.font      = `${CFG.MENU_SUB_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign = 'center'
-  ctx.fillText('Kaleyi savunun. Düşmanları durdurun.', world.w / 2, Math.round(world.h * CFG.MENU_SUB_Y_FRAC))
+  ctx.fillText('', world.w / 2, Math.round(world.h * CFG.MENU_SUB_Y_FRAC))
 
   // Stats — two compact lines
   ctx.fillStyle = '#64748b'
   ctx.font      = `${CFG.MENU_STATS_FONT}px Inter, system-ui, sans-serif`
   ctx.fillText(
-    `💰 Altın: ${state.money}   🔫 Mermi: Sv.${state.upgrades.bulletCount}   🎯 Delici: Sv.${state.upgrades.pierce}`,
+    `💰 Altın: ${state.money}   ➕2️⃣ Çoklu Mermi: Sv.${state.upgrades.bulletCount}   👻 Delici: Sv.${state.upgrades.pierce}`,
     world.w / 2, Math.round(world.h * CFG.MENU_STATS1_Y_FRAC))
   ctx.fillText(
-    `🔥 Atış: Sv.${state.upgrades.fireRate}   💥 Hasar: Sv.${state.upgrades.bulletDmg}`,
+    `🌧️ Mermi Yağmuru: Sv.${state.upgrades.fireRate}   💪 Güç: Sv.${state.upgrades.bulletDmg}`,
     world.w / 2, Math.round(world.h * CFG.MENU_STATS2_Y_FRAC))
 
   // Buttons — store hit rects for click handler
   canvasBtns.menuPlay = drawCanvasButton(world.w / 2, Math.round(world.h * CFG.MENU_PLAY_Y_FRAC),
     CFG.MENU_PLAY_BTN_W, CFG.MENU_PLAY_BTN_H, '▶  OYNA', '#16a34a', '#bbf7d0', CFG.MENU_PLAY_BTN_FONT)
   canvasBtns.menuShop = drawCanvasButton(world.w / 2, Math.round(world.h * CFG.MENU_SHOP_Y_FRAC),
-    CFG.MENU_SHOP_BTN_W, CFG.MENU_SHOP_BTN_H, '⚙  YÜKSELTMELER', '#1d4ed8', '#bfdbfe', CFG.MENU_SHOP_BTN_FONT)
+    CFG.MENU_SHOP_BTN_W, CFG.MENU_SHOP_BTN_H, '⚙  Atölye', '#1d4ed8', '#bfdbfe', CFG.MENU_SHOP_BTN_FONT)
 
   if (CFG.DEV_ENABLED) {
-    canvasBtns.menuDev = drawCanvasButton(world.w / 2, Math.round(world.h * 0.95),
+    canvasBtns.menuDev = drawCanvasButton(world.w / 2 - 110, Math.round(world.h * 0.95),
       200, 30, `DEV: ${state.devTimewarp ? 'ON' : 'OFF'}`, '#475569', '#cbd5e1', 12)
+    
+    const resetLabel = state.devResetFeedback || 'KAYITLARI SİL'
+    const resetColor = state.devResetFeedback === 'TEMİZLENDİ' ? '#16a34a' : state.devResetFeedback === 'HATA' ? '#dc2626' : '#991b1b'
+    canvasBtns.menuDevReset = drawCanvasButton(world.w / 2 + 100, Math.round(world.h * 0.95),
+      180, 30, resetLabel, resetColor, '#fecaca', 12)
   }
 
   ctx.fillStyle = '#475569'
   ctx.font      = `${CFG.MENU_TIP_FONT}px Inter, system-ui, sans-serif`
-  ctx.fillText('Bas + Sürükle ile topçuyu hareket ettir', world.w / 2, Math.round(world.h * CFG.MENU_TIP1_Y_FRAC))
-  ctx.fillText('Basılı tut → ateş et  ·  Bırak → durur', world.w / 2, Math.round(world.h * CFG.MENU_TIP2_Y_FRAC))
+  ctx.fillText('Ateş etmek için basılı tut', world.w / 2, Math.round(world.h * CFG.MENU_TIP1_Y_FRAC))
+  ctx.fillText('Hareket etmek için sürükle', world.w / 2, Math.round(world.h * CFG.MENU_TIP2_Y_FRAC))
 
-  ctx.textAlign = 'left'
+  ctx.textAlign = 'middle'
 }
 
 function drawCountdownScreen() {
@@ -1384,13 +1493,13 @@ function drawCountdownScreen() {
   ctx.fillStyle = '#e2e8f0'
   ctx.font      = `bold ${CFG.COUNTDOWN_HEADER_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign = 'center'
-  ctx.fillText('🎯 Düşmanları topla, kaleyi koru!', midW, Math.round(world.h * CFG.COUNTDOWN_TIP_Y_FRAC))
+  ctx.fillText('🎯 Düşmanları yok et, kaleyi koru!', midW, Math.round(world.h * CFG.COUNTDOWN_TIP_Y_FRAC))
 
   ctx.fillStyle = '#94a3b8'
   ctx.font      = `${CFG.COUNTDOWN_TIP_FONT}px Inter, system-ui, sans-serif`
-  ctx.fillText('Bas + Sürükle → topçuyu hareket ettir', midW, Math.round(world.h * CFG.COUNTDOWN_TIP2_Y_FRAC))
-  ctx.fillText('Basılı tut → ateş et, bırak → durur', midW, Math.round(world.h * CFG.COUNTDOWN_TIP3_Y_FRAC))
-  ctx.fillText('Kristal topla → Yükseltme  ·  Altın topla → Mağaza', midW, Math.round(world.h * CFG.COUNTDOWN_TIP4_Y_FRAC))
+  ctx.fillText('Ateş etmek için basılı tut', midW, Math.round(world.h * CFG.COUNTDOWN_TIP2_Y_FRAC))
+  ctx.fillText('Hareket etmek için sürükle', midW, Math.round(world.h * CFG.COUNTDOWN_TIP3_Y_FRAC))
+  ctx.fillText('Kristalleri ve altınları topla, ihtiyacın olacak ☠️', midW, Math.round(world.h * CFG.COUNTDOWN_TIP4_Y_FRAC))
 
   // Animated countdown number
   const tick  = Math.ceil(state.countdownTimer)
@@ -1406,7 +1515,7 @@ function drawCountdownScreen() {
   ctx.font        = `bold ${CFG.COUNTDOWN_NUM_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign   = 'center'
   ctx.textBaseline= 'middle'
-  ctx.fillText(tick <= 0 ? 'GİT!' : String(tick), 0, 0)
+  ctx.fillText(tick <= 0 ? 'BAŞLA!' : String(tick), 0, 0)
   ctx.textBaseline= 'alphabetic'
   ctx.restore()
 
@@ -1416,12 +1525,46 @@ function drawCountdownScreen() {
 function drawEndScreen() {
   drawBackground()
 
+  const midW = world.w / 2
+  const btnY = Math.round(world.h * CFG.END_BTN_Y_FRAC)
+  const lost = state.castle.hp <= 0
+  const pulse = Math.sin(performance.now() / 1000 * CFG.ANIM_RECORD_PULSE_FREQ)
+
+  // Record break background pulse
+  if (state.isNewRecord) {
+    const fade = CFG.ANIM_RECORD_SCREEN_FADE_MIN + (CFG.ANIM_RECORD_SCREEN_FADE_MAX - CFG.ANIM_RECORD_SCREEN_FADE_MIN) * (0.5 + 0.5 * Math.sin(performance.now() / 1000 * CFG.ANIM_RECORD_SCREEN_FADE_FREQ))
+    ctx.fillStyle = `rgba(22, 163, 74, ${fade * 0.3})`
+    ctx.fillRect(0, 0, world.w, world.h)
+  }
+
   // Translucent overlay
   ctx.fillStyle = `rgba(0,0,0,${CFG.END_OVERLAY_ALPHA})`
   ctx.fillRect(0, 0, world.w, world.h)
 
-  const midW = world.w / 2
-  const lost = state.castle.hp <= 0
+  // SCORE DISPLAY (BOLD ON TOP)
+  const currentRunScore = Math.floor(state.time)
+  if (state.isNewRecord) {
+    ctx.save()
+    const scale = 1 + pulse * CFG.ANIM_RECORD_SCALE_AMP * CFG.ANIM_RECORD_INTENSITY
+    ctx.translate(midW, Math.round(world.h * (CFG.END_TITLE_Y_FRAC - 0.20)))
+    ctx.scale(scale, scale)
+    ctx.shadowBlur  = CFG.ANIM_RECORD_GLOW_MAX * (0.5 + 0.5 * pulse) * CFG.ANIM_RECORD_INTENSITY
+    ctx.shadowColor = '#eab308'
+    ctx.fillStyle   = '#facc15'
+    ctx.font        = 'bold 28px Inter, system-ui, sans-serif'
+    ctx.textAlign   = 'center'
+    ctx.fillText('Muhteşem!', 0, 0)
+    ctx.fillText('Yeni Rekor:', 0, 34)
+    ctx.fillText(String(state.bestScore), 0, 68)
+    ctx.restore()
+  } else {
+    ctx.fillStyle = '#94a3b8'
+    ctx.font      = 'bold 32px Inter, system-ui, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(`Skor: ${currentRunScore}`, midW, Math.round(world.h * (CFG.END_TITLE_Y_FRAC - 0.12)))
+    ctx.font      = 'bold 16px Inter, system-ui, sans-serif'
+    ctx.fillText(`Rekor: ${state.bestScore}`, midW, Math.round(world.h * (CFG.END_TITLE_Y_FRAC - 0.07)))
+  }
 
   ctx.save()
   ctx.shadowBlur  = CFG.END_SHADOW_BLUR
@@ -1435,12 +1578,11 @@ function drawEndScreen() {
   ctx.fillStyle = '#e2e8f0'
   ctx.font      = `${CFG.END_STATS_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign = 'center'
-  ctx.fillText(`Öldürülen: ${state.runKills} düşman`, midW, Math.round(world.h * CFG.END_KILLS_Y_FRAC))
-  ctx.fillText(`Toplanan: 💰 ${state.money} altın`,   midW, Math.round(world.h * CFG.END_MONEY_Y_FRAC))
+  ctx.fillText(`☠️ ${state.runKills} düşman yok edildi!`, midW, Math.round(world.h * CFG.END_KILLS_Y_FRAC))
+  ctx.fillText(`💰 ${state.money} altın toplandı!`,   midW, Math.round(world.h * CFG.END_MONEY_Y_FRAC))
 
-  const btnY = Math.round(world.h * CFG.END_BTN_Y_FRAC)
-  canvasBtns.endRestart  = drawCanvasButton(midW - CFG.END_BTN_X_OFFSET, btnY, CFG.END_BTN_W, CFG.END_BTN_H, '🔄 TEKRAR',   '#16a34a', '#bbf7d0', CFG.END_BTN_FONT)
-  canvasBtns.endMainMenu = drawCanvasButton(midW + CFG.END_BTN_X_OFFSET, btnY, CFG.END_BTN_W, CFG.END_BTN_H, '🏠 ANA MENÜ', '#1d4ed8', '#bfdbfe', CFG.END_BTN_FONT)
+  canvasBtns.endRestart  = drawCanvasButton(midW - CFG.END_BTN_X_OFFSET, btnY, CFG.END_BTN_W, CFG.END_BTN_H, '🔄 Tekrar',   '#16a34a', '#bbf7d0', CFG.END_BTN_FONT)
+  canvasBtns.endMainMenu = drawCanvasButton(midW + CFG.END_BTN_X_OFFSET, btnY, CFG.END_BTN_W, CFG.END_BTN_H, '🏠 Altınları harca', '#1d4ed8', '#bfdbfe', CFG.END_BTN_FONT)
 
   ctx.textAlign = 'left'
 }
@@ -1448,26 +1590,6 @@ function drawEndScreen() {
 function drawPlayingScreen() {
   drawBackground()
   drawCastle()
-
-  // Danger-zone tint
-  const dangerTop = state.turret.y + CFG.TURRET_HEIGHT / 2 + CFG.BREACH_DANGER_GAP
-  ctx.fillStyle = `rgba(220, 38, 38, ${CFG.BREACH_DANGER_ALPHA})`
-  ctx.fillRect(0, dangerTop, world.w, BREACH_Y - dangerTop)
-
-  // Breach line
-  ctx.save()
-  ctx.strokeStyle = '#dc2626'
-  ctx.lineWidth   = CFG.BREACH_LINE_W
-  ctx.shadowBlur  = CFG.BREACH_LINE_SHADOW_BLUR
-  ctx.shadowColor = '#ef4444'
-  ctx.setLineDash([CFG.BREACH_DASH_ON, CFG.BREACH_DASH_OFF])
-  ctx.beginPath(); ctx.moveTo(0, BREACH_Y); ctx.lineTo(world.w, BREACH_Y); ctx.stroke()
-  ctx.restore()
-
-  ctx.fillStyle = 'rgba(220, 38, 38, 0.8)'
-  ctx.font      = `bold ${CFG.BREACH_LABEL_FONT}px Inter, system-ui, sans-serif`
-  ctx.textAlign = 'left'
-  ctx.fillText('⚠ KALEYİ SAVUN', CFG.BREACH_LABEL_X, BREACH_Y - CFG.BREACH_LABEL_Y)
 
   ctx.strokeStyle = '#334155'
   ctx.lineWidth   = CFG.CANVAS_BORDER_W
@@ -1607,7 +1729,7 @@ function drawEventProgressBar() {
   ctx.fillStyle = '#f1f5f9'
   ctx.font      = 'bold 12px Inter, system-ui'
   ctx.textAlign = 'center'
-  ctx.fillText(`${isBossNext ? '👑 PATRON' : '💀 SÜRÜ'} YAKLAŞIYOR — ${formatTime(state.time)}`, world.w / 2, barY - 10)
+  ctx.fillText(`${isBossNext ? '👑 BOSS' : '💀 SÜRÜ'} GELİYOR! — ${formatTime(state.time)}`, world.w / 2, barY - 10)
   ctx.textAlign = 'left'
 }
 
@@ -1707,6 +1829,19 @@ function handleCanvasTap(cx, cy) {
       state.devMagnet   = state.devTimewarp
       return true
     }
+    if (CFG.DEV_ENABLED && hitTest(canvasBtns.menuDevReset, cx, cy)) {
+      try {
+        localStorage.clear()
+        state.money = 0
+        state.upgrades = { fireRate: 0, bulletDmg: 0, pierce: 0, bulletCount: 0 }
+        state.bestScore = 0
+        state.devResetFeedback = 'TEMİZLENDİ'
+      } catch {
+        state.devResetFeedback = 'HATA'
+      }
+      setTimeout(() => { state.devResetFeedback = null }, 2000)
+      return true
+    }
   }
   if (state.screen === SCREEN.END) {
     if (hitTest(canvasBtns.endRestart,  cx, cy)) { startCountdown(); return true }
@@ -1771,7 +1906,7 @@ function buyUpgrade(type) {
   state.upgrades[type] += 1
   saveUpgrades()
   renderShopButtons()
-  shopSummaryEl.textContent = `💰 Toplam Altın: ${state.money}`
+  shopSummaryEl.textContent = `💰 Bakiye: ${state.money}`
 }
 buyFireRateBtn.addEventListener('click',    () => buyUpgrade('fireRate'))
 buyBulletDmgBtn.addEventListener('click',   () => buyUpgrade('bulletDmg'))
@@ -1802,10 +1937,18 @@ if (!CanvasRenderingContext2D.prototype.roundRect) {
   }
 }
 
+function updateRarityLegend() {
+  if (!legendBarEl) return
+  const c = `hsl(${CFG.RARITY_COMMON_HUE}, ${CFG.RARITY_COMMON_SAT}%, ${CFG.RARITY_COMMON_LIGHT}%)`
+  const r = `hsl(${CFG.RARITY_RARE_HUE}, ${CFG.RARITY_RARE_SAT}%, ${CFG.RARITY_RARE_LIGHT}%)`
+  legendBarEl.style.background = `linear-gradient(to right, ${c}, ${r})`
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Bootstrap
 // ─────────────────────────────────────────────────────────────────────────────
 loadUpgrades()
+updateRarityLegend()
 mainHudEl.style.display = 'none'
 goToMenu()
 requestAnimationFrame(loop)

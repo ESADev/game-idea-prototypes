@@ -157,13 +157,14 @@ button {
 }
 
 .shop-btn {
-  background: #2563eb;
+  background: #1e293b;
   color: white;
   display: flex;
   flex-direction: column;
   gap: 3px;
   text-align: left;
   padding: 12px 16px;
+  transition: transform 0.1s ease;
 }
 
 .shop-btn:disabled {
@@ -189,8 +190,67 @@ button {
   color: white;
 }
 
-.skip-btn {
-  background: #475569;
-  color: white;
-  font-size: clamp(1.1rem, 2.4vw, 1.35rem);
+.rarity-legend {
+  margin-top: 16px;
+  width: 100%;
+  height: 48px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.legend-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+  z-index: 0;
+}
+
+.legend-label {
+  font-weight: 700;
+  font-size: 0.5rem;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  z-index: 1;
+  letter-spacing: 0.5px;
+}
+
+/* Dev controls */
+.dev-controls {
+  position: absolute;
+  bottom: 12px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.9);
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #475569;
+}
+
+.dev-controls label {
+  font-size: 10px;
+  font-weight: bold;
+  color: #94a3b8;
+}
+
+.dev-controls input {
+  width: 45px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #fff;
+  font-size: 12px;
+  padding: 2px 4px;
+  border-radius: 2px;
 }

@@ -8,6 +8,16 @@ export const CFG = {
 
   // ── Persistence ────────────────────────────────────────────────────────────
   STORAGE_KEY: 'turret-survivors-upgrades-v1',
+  BEST_SCORE_KEY: 'turret-survivors-best-score-v1',
+
+  // ── Best Score Animation ───────────────────────────────────────────────────
+  ANIM_RECORD_INTENSITY:        1.0,  // GLOBAL MULTIPLIER (0.0 - 5.0+)
+  ANIM_RECORD_PULSE_FREQ:       6.0,  // frequency of scale/glow pulse (rad/s)
+  ANIM_RECORD_GLOW_MAX:         35,   // max shadowBlur for new record text
+  ANIM_RECORD_SCALE_AMP:        0.12, // max scale deviation (1.0 ± this)
+  ANIM_RECORD_SCREEN_FADE_FREQ: 2.5,  // frequency of background tint pulse
+  ANIM_RECORD_SCREEN_FADE_MIN:  0.4,  // min alpha for background overlay
+  ANIM_RECORD_SCREEN_FADE_MAX:  0.8,  // max alpha for background overlay
 
   // ── Game loop ──────────────────────────────────────────────────────────────
   LOOP_DT_CAP: 0.033,   // max frame delta-time (s) — caps spiral-of-death after tab switch
@@ -58,7 +68,7 @@ export const CFG = {
   AMMO_COST_PER_VOLLEY:       1,    // ammo consumed per fireBullets() call
   AMMO_REGEN_RATE:            15,   // ammo per second regenerated when not holding fire
   AMMO_REGEN_DELAY:           0.6,  // seconds after releasing fire before regen begins
-  AMMO_CAPACITY_PER_UPGRADE:  15,   // +max ammo per ammoCapacity in-run upgrade level
+  AMMO_CAPACITY_PER_UPGRADE:  25,   // +max ammo per ammoCapacity in-run upgrade level
   AMMO_LOW_THRESHOLD:         0.25, // below this fill fraction the bar pulses red
 
   // ── Ammo bar UI ────────────────────────────────────────────────────────────
@@ -69,8 +79,8 @@ export const CFG = {
   AMMO_BAR_PULSE_SHADOW_AMP:    5,   // amplitude added to shadowBlur during low-ammo pulse
 
   // ── Bullet spread (multi-barrel) ───────────────────────────────────────────
-  BULLET_SPREAD_PX:         18,  // px gap between adjacent bullets in a volley
-  BULLET_SIDE_ANGLE_DEG:    12,  // degrees of outward angle per step away from center barrel
+  BULLET_SPREAD_PX:         15,  // px gap between adjacent bullets in a volley
+  BULLET_SIDE_ANGLE_DEG:    10,  // degrees of outward angle per step away from center barrel
 
   // ── Turret ─────────────────────────────────────────────────────────────────
   TURRET_BASE_SPEED:         700,  // px/s horizontal movement at full steering input
@@ -99,10 +109,10 @@ export const CFG = {
   TURRET_SHIELD_FONT:         11,  // font size for shield stack count label (px)
 
   // ── Bullets ────────────────────────────────────────────────────────────────
-  BULLET_BASE_FIRE_RATE:    2.5,  // shots per second at base level (higher for survival)
-  BULLET_FIRE_RATE_PER_LVL: 0.5,  // +shots/s per fireRate upgrade level
-  BULLET_BASE_DAMAGE:       45,   // damage per bullet at base level (higher for early kills)
-  BULLET_DAMAGE_PER_LVL:    20,   // +damage per bulletDmg upgrade level
+  BULLET_BASE_FIRE_RATE:    3,  // shots per second at base level
+  BULLET_FIRE_RATE_MULT:    1.15, // multiplicative increase per level (~15%)
+  BULLET_BASE_DAMAGE:       45,   // damage per bullet at base level
+  BULLET_DAMAGE_MULT:       1.20, // multiplicative increase per level (~15%)
   BULLET_SPEED:             700,  // px/s upward
   BULLET_RADIUS:            5,    // collision and draw radius (px)
   BULLET_SHADOW_BLUR:       10,   // shadowBlur on bullet glow
@@ -122,13 +132,13 @@ export const CFG = {
   // ★ All time-scale values are tuned for 5× faster progression than original.
   // Balance formula: PlayerDPS(upgrades) / (EnemyHP(t) × spawnRate(t)) ≈ const
   // Crystal income ∝ spawnRate, upgrade count ∝ log(crystals), so balance holds.
-  ENEMY_SPAWN_INTERVAL_START:  2.5,    // seconds between spawns at game start (gentler opening)
+  ENEMY_SPAWN_INTERVAL_START:  1.5,    // seconds between spawns at game start (gentler opening)
   ENEMY_SPAWN_RATE_RAMP:       0.005,  // interval reduction per second
-  ENEMY_SPAWN_INTERVAL_MIN:    0.08,   // hard floor — still reaches high density but not instant
-  ENEMY_MAX_COUNT:             300,    // max simultaneous enemies (raised for horde effect)
+  ENEMY_SPAWN_INTERVAL_MIN:    0.05,   // hard floor — still reaches high density but not instant
+  ENEMY_MAX_COUNT:             600,    // max simultaneous enemies (raised for horde effect)
   ENEMY_BASE_RADIUS:           21,     // base radius (px)
   ENEMY_RADIUS_VARIANCE:       6,      // ± random radius variation (px)
-  ENEMY_BASE_SPEED:            22,     // base movement speed (px/s) — reduced for survivability
+  ENEMY_BASE_SPEED:            25,     // base movement speed (px/s) — reduced for survivability
   ENEMY_SPEED_VARIANCE:        20,     // random speed addition per enemy (px/s)
   ENEMY_SPEED_TIME_SCALE:      1.8,    // px/s additive bonus per second (tamed — was 5.0)
   ENEMY_SPEED_TIME_CAP:        90,     // max additive speed bonus
@@ -138,16 +148,16 @@ export const CFG = {
   ENEMY_SPAWN_MARGIN:          28,     // px kept from each side edge for top spawns
   ENEMY_BREACH_DECEL:          220,    // px/s² deceleration after breach line
   ENEMY_CASTLE_DAMAGE:         15,     // HP removed from castle per normal enemy explosion
-  ENEMY_BASE_HP:               40,     // base hit points for a normal enemy (reduced for early kills)
-  ENEMY_HP_TIME_SCALE:         1.0,    // +HP per second of play time (gentler curve)
-  ENEMY_HP_TIME_CAP:           250,    // max HP bonus from time scaling
+  ENEMY_BASE_HP:               20,     // base hit points for a normal enemy (reduced for early kills)
+  ENEMY_HP_TIME_SCALE:         0.5,    // +HP per second of play time (gentler curve)
+  ENEMY_HP_TIME_CAP:           1000,    // max HP bonus from time scaling
   ENEMY_BREACH_EXPLOSION_MARGIN: 5,    // px above castle floor for breach explosion
 
   // ── Global speed multiplier ramp ───────────────────────────────────────────
   // On top of additive bonus; creates late-game escalation
-  ENEMY_SPEED_MULT_START:      1.0,   // multiplier at t=0
-  ENEMY_SPEED_MULT_MAX:        1.6,   // maximum multiplier (reduced ceiling)
-  ENEMY_SPEED_MULT_RAMP_TIME:  300,   // seconds to reach max — 5 min (gives player time to upgrade)
+  ENEMY_SPEED_MULT_START:      1.25,   // multiplier at t=0
+  ENEMY_SPEED_MULT_MAX:        2.5,   // maximum multiplier (reduced ceiling)
+  ENEMY_SPEED_MULT_RAMP_TIME:  1200,   // seconds to reach max — 5 min (gives player time to upgrade)
 
   // ── Enemy visual ───────────────────────────────────────────────────────────
   ENEMY_HP_BAR_H:   4,  // height of HP bar above enemy (px)
@@ -176,14 +186,14 @@ export const CFG = {
   // Periodic enemy strengthening at t = 240 + 180k seconds (4:00, 7:00, 10:00 …)
   // Player should feel challenged but barely survive initial tier; feel strong before next tier.
   // HP×(1 + tier×0.40) and speed×(1 + tier×0.20) on top of time scaling.
-  TIER_FIRST_TIME:         240,   // first tier upgrade at 4:00 (seconds)
+  TIER_FIRST_TIME:         180,   // first tier upgrade at 4:00 (seconds)
   TIER_PERIOD:             180,   // tier upgrades every 3 min after that
   TIER_HP_MULT_PER_TIER:   0.40,  // +40% HP per tier level (additive multiplier delta)
   TIER_SPEED_MULT_PER_TIER: 0.20, // +20% speed per tier level
 
   // ── Boss system ────────────────────────────────────────────────────────────
   // Two mechanics: (1) phase-2 shield at 50% HP, (2) periodic charge dash.
-  BOSS_FIRST_TIME:          120,   // first boss at 2:00 (seconds)
+  BOSS_FIRST_TIME:          60,   // first boss at 2:00 (seconds)
   BOSS_PERIOD:              180,   // new boss every 3 min (2, 5, 8...)
   BOSS_RADIUS:               48,   // boss circle radius (px)
   BOSS_HP_BASE:             1000,  // HP of the first boss
@@ -206,14 +216,14 @@ export const CFG = {
 
   // ── Horde system ───────────────────────────────────────────────────────────
   // Flood of enemies for a fixed duration; spawn interval overrides normal rate.
-  HORDE_FIRST_TIME:      180,   // first horde at 3:00 (seconds)
+  HORDE_FIRST_TIME:      120,   // first horde at 3:00 (seconds)
   HORDE_PERIOD:          180,   // horde every 3 min (3, 6, 9...)
-  HORDE_DURATION:         25,   // seconds the horde lasts (prolonged)
-  HORDE_SPAWN_INTERVAL:  0.20,  // enemy spawn interval during horde (reduced intensity)
+  HORDE_DURATION:         30,   // seconds the horde lasts (prolonged)
+  HORDE_SPAWN_INTERVAL:  0.25,  // enemy spawn interval during horde (reduced intensity)
 
   // ── Developer tools ────────────────────────────────────────────────────────
   DEV_ENABLED:       true,  // show dev button in menu
-  DEV_TIMEWARP_MULT: 5.0,   // speed multiplier for timewarp
+  DEV_TIMEWARP_MULT: 2.5,   // speed multiplier for timewarp
 
   // ── Notification overlay ───────────────────────────────────────────────────
   NOTIF_DURATION:  3.2,  // seconds notification stays visible
@@ -351,11 +361,29 @@ export const CFG = {
   END_BTN_X_OFFSET:   108,
 
   // ── Permanent upgrade shop ─────────────────────────────────────────────────
-  COST_SCALE_FACTOR:      1.65,
-  COST_BASE_FIRE_RATE:    8,
-  COST_BASE_BULLET_DMG:   10,
-  COST_BASE_PIERCE:       15,
-  COST_BASE_BULLET_COUNT: 12,
+  COST_SCALE_FACTOR:      2,
+  COST_BASE_FIRE_RATE:    64,
+  COST_BASE_BULLET_DMG:   80,
+  COST_BASE_PIERCE:       120,
+  COST_BASE_BULLET_COUNT: 120,
+
+  // ── Rarity Colors ──────────────────────────────────────────────────────────
+  RARITY_COMMON_HUE:    210,  // 
+  RARITY_RARE_HUE:      300,  // 
+  RARITY_COMMON_SAT:    70,   // % (Muted for common)
+  RARITY_RARE_SAT:      95,   // % (Vibrant for rare)
+  RARITY_COMMON_LIGHT:  25,   // % (Dark for common)
+  RARITY_RARE_LIGHT:    35,   // % (Brighter for rare)
+
+  // ── In-run upgrade weights (relative probability) ──────────────────────────
+  WEIGHT_FIRE_RATE:     10,
+  WEIGHT_BULLET_DMG:    10,
+  WEIGHT_PIERCE:        6,
+  WEIGHT_SHIELD:        8,
+  WEIGHT_MAGNET:        3,
+  WEIGHT_DOUBLE_GEMS:   4,
+  WEIGHT_BULLET_COUNT:  4,
+  WEIGHT_AMMO_CAPACITY: 10,
 
   // ── In-run upgrade stacking ────────────────────────────────────────────────
   SHIELD_STACKS_PER_PICK:  3,
