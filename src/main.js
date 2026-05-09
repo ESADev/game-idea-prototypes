@@ -754,7 +754,12 @@ function drawNotification() {
   ctx.font         = `bold ${n.font}px Inter, system-ui, sans-serif`
   ctx.fillStyle    = 'rgba(0,0,0,0.55)'
   const tw         = ctx.measureText(n.text).width + 40
-  ctx.fillRect(world.w / 2 - tw / 2, y - n.font - CFG.NOTIF_BG_PAD_TOP, tw, n.font + CFG.NOTIF_BG_PAD_BOTTOM)
+  ctx.fillRect(
+    world.w / 2 - tw / 2,
+    y - n.font - CFG.NOTIF_BG_PAD_TOP,
+    tw,
+    n.font + CFG.NOTIF_BG_PAD_TOP + CFG.NOTIF_BG_PAD_BOTTOM,
+  )
   ctx.shadowBlur   = 18
   ctx.shadowColor  = n.color
   ctx.fillStyle    = n.color
