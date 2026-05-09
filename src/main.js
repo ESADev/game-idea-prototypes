@@ -194,6 +194,8 @@ const state = {
   fireTimer:    0,
   ammo:         CFG.AMMO_MAX_BASE,
   lastFireTime: -999,
+  emptyAmmoHoldTime: 0,
+  emptyAmmoWarnShown: false,
 
   // ── Boss / horde / tier / notification ──────────────────────────────────
   boss:          null,               // boss object while alive, null otherwise
@@ -354,6 +356,8 @@ function resetRun() {
   state.coinPickups    = []
   state.explosions     = []
   state.lastFireTime   = -999
+  state.emptyAmmoHoldTime = 0
+  state.emptyAmmoWarnShown = false
 
   state.inRunUpgrades      = { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0, ammoCapacity: 0 }
   state.inRunUpgradesCount = 0
@@ -436,6 +440,23 @@ function updateAmmo(dt) {
   if (state.time - state.lastFireTime >= CFG.AMMO_REGEN_DELAY) {
     state.ammo = Math.min(getMaxAmmo(), state.ammo + CFG.AMMO_REGEN_RATE * dt)
   }
+}
+
+function updateOutOfAmmoWarning(dt) {
+  const tryingToShoot = mouseDown || keys.shoot
+  const isOutOfAmmo = state.ammo < CFG.AMMO_COST_PER_VOLLEY
+
+  if (tryingToShoot && isOutOfAmmo) {
+    state.emptyAmmoHoldTime += dt
+    if (!state.emptyAmmoWarnShown && state.emptyAmmoHoldTime >= CFG.AMMO_EMPTY_WARN_HOLD) {
+      triggerNotification('🚫 MERMİ BİTTİ!', '#ef4444', { yFrac: 0.5, font: 44, duration: 1.2 })
+      state.emptyAmmoWarnShown = true
+    }
+    return
+  }
+
+  state.emptyAmmoHoldTime = 0
+  if (!tryingToShoot) state.emptyAmmoWarnShown = false
 }
 
 function fireBullets() {
@@ -708,8 +729,14 @@ function updateCoins(dt) {
 // ─────────────────────────────────────────────────────────────────────────────
 //  Notification
 // ─────────────────────────────────────────────────────────────────────────────
-function triggerNotification(text, color) {
-  state.notification = { text, color, timer: CFG.NOTIF_DURATION }
+function triggerNotification(text, color, opts = {}) {
+  state.notification = {
+    text,
+    color,
+    timer: opts.duration ?? CFG.NOTIF_DURATION,
+    font: opts.font ?? CFG.NOTIF_FONT,
+    yFrac: opts.yFrac ?? CFG.NOTIF_Y_FRAC,
+  }
 }
 function updateNotification(dt) {
   if (state.notification) {
@@ -721,16 +748,21 @@ function drawNotification() {
   const n = state.notification
   if (!n || n.timer <= 0) return
   const alpha = Math.min(1, n.timer / 0.4)  // fade out last 0.4s
-  const y     = Math.round(world.h * CFG.NOTIF_Y_FRAC)
+  const y     = Math.round(world.h * n.yFrac)
   ctx.save()
   ctx.globalAlpha  = alpha
+  ctx.font         = `bold ${n.font}px Inter, system-ui, sans-serif`
   ctx.fillStyle    = 'rgba(0,0,0,0.55)'
   const tw         = ctx.measureText(n.text).width + 40
-  ctx.fillRect(world.w / 2 - tw / 2, y - CFG.NOTIF_FONT - 4, tw, CFG.NOTIF_FONT + 16)
+  ctx.fillRect(
+    world.w / 2 - tw / 2,
+    y - n.font - CFG.NOTIF_BG_PAD_TOP,
+    tw,
+    n.font + CFG.NOTIF_BG_PAD_TOP + CFG.NOTIF_BG_PAD_BOTTOM,
+  )
   ctx.shadowBlur   = 18
   ctx.shadowColor  = n.color
   ctx.fillStyle    = n.color
-  ctx.font         = `bold ${CFG.NOTIF_FONT}px Inter, system-ui, sans-serif`
   ctx.textAlign    = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(n.text, world.w / 2, y)
@@ -1769,6 +1801,7 @@ function loop(now) {
       }
     }
     updateAmmo(dt)
+    updateOutOfAmmoWarning(dt)
 
     // Schedule: boss / horde / tier
     checkSchedule()

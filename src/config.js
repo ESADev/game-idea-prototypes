@@ -70,6 +70,7 @@ export const CFG = {
   AMMO_REGEN_DELAY:           0.6,  // seconds after releasing fire before regen begins
   AMMO_CAPACITY_PER_UPGRADE:  25,   // +max ammo per ammoCapacity in-run upgrade level
   AMMO_LOW_THRESHOLD:         0.25, // below this fill fraction the bar pulses red
+  AMMO_EMPTY_WARN_HOLD:       0.8,  // hold-fire duration at zero ammo before warning appears
 
   // ── Ammo bar UI ────────────────────────────────────────────────────────────
   AMMO_BAR_H:                   14,  // height of ammo bar (px)
@@ -226,9 +227,11 @@ export const CFG = {
   DEV_TIMEWARP_MULT: 2.5,   // speed multiplier for timewarp
 
   // ── Notification overlay ───────────────────────────────────────────────────
-  NOTIF_DURATION:  3.2,  // seconds notification stays visible
-  NOTIF_FONT:       28,  // font size (px)
-  NOTIF_Y_FRAC:    0.38, // canvas-height fraction for notification center
+  NOTIF_DURATION:       3.2,  // seconds notification stays visible
+  NOTIF_FONT:            28,  // font size (px)
+  NOTIF_Y_FRAC:         0.38, // canvas-height fraction for notification center
+  NOTIF_BG_PAD_TOP:        8, // top padding for notification background (px)
+  NOTIF_BG_PAD_BOTTOM:    18, // bottom padding for notification background (px)
 
   // ── Castle ─────────────────────────────────────────────────────────────────
   CASTLE_MAX_HP:  300,
