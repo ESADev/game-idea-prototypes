@@ -141,7 +141,7 @@ export const CFG = {
   ENEMY_RADIUS_VARIANCE:       6,      // ± random radius variation (px)
   ENEMY_BASE_SPEED:            25,     // base movement speed (px/s) — reduced for survivability
   ENEMY_SPEED_VARIANCE:        20,     // random speed addition per enemy (px/s)
-  ENEMY_SPEED_TIME_SCALE:      1.8,    // px/s additive bonus per second (tamed — was 5.0)
+  ENEMY_SPEED_TIME_SCALE:      1.5,    // px/s additive bonus per second (tamed — was 5.0)
   ENEMY_SPEED_TIME_CAP:        90,     // max additive speed bonus
   ENEMY_TOP_SPAWN_CHANCE:      0.65,   // fraction spawning from top edge
   ENEMY_LEFT_SPAWN_CHANCE:     0.82,   // cumulative fraction for left-side spawn
@@ -150,7 +150,7 @@ export const CFG = {
   ENEMY_BREACH_DECEL:          220,    // px/s² deceleration after breach line
   ENEMY_CASTLE_DAMAGE:         15,     // HP removed from castle per normal enemy explosion
   ENEMY_BASE_HP:               20,     // base hit points for a normal enemy (reduced for early kills)
-  ENEMY_HP_TIME_SCALE:         0.5,    // +HP per second of play time (gentler curve)
+  ENEMY_HP_TIME_SCALE:         0.4,    // +HP per second of play time (gentler curve)
   ENEMY_HP_TIME_CAP:           1000,    // max HP bonus from time scaling
   ENEMY_BREACH_EXPLOSION_MARGIN: 5,    // px above castle floor for breach explosion
 
@@ -189,8 +189,8 @@ export const CFG = {
   // HP×(1 + tier×0.40) and speed×(1 + tier×0.20) on top of time scaling.
   TIER_FIRST_TIME:         180,   // first tier upgrade at 4:00 (seconds)
   TIER_PERIOD:             180,   // tier upgrades every 3 min after that
-  TIER_HP_MULT_PER_TIER:   0.40,  // +40% HP per tier level (additive multiplier delta)
-  TIER_SPEED_MULT_PER_TIER: 0.20, // +20% speed per tier level
+  TIER_HP_MULT_PER_TIER:   0.30,  // +40% HP per tier level (additive multiplier delta)
+  TIER_SPEED_MULT_PER_TIER: 0.15, // +20% speed per tier level
 
   // ── Boss system ────────────────────────────────────────────────────────────
   // Two mechanics: (1) phase-2 shield at 50% HP, (2) periodic charge dash.
@@ -324,17 +324,17 @@ export const CFG = {
   MENU_TIP1_Y_FRAC:     0.74,
   MENU_TIP2_Y_FRAC:     0.77,
   MENU_TITLE_LINE_GAP:  62,
-  MENU_TITLE_FONT1:     56,
-  MENU_TITLE_FONT2:     50,
-  MENU_SUB_FONT:        19,
-  MENU_STATS_FONT:      16,
-  MENU_TIP_FONT:        14,
-  MENU_PLAY_BTN_W:      230,
-  MENU_PLAY_BTN_H:      66,
-  MENU_PLAY_BTN_FONT:   24,
+  MENU_TITLE_FONT1:     48,
+  MENU_TITLE_FONT2:     42,
+  MENU_SUB_FONT:        17,
+  MENU_STATS_FONT:      14,
+  MENU_TIP_FONT:        12,
+  MENU_PLAY_BTN_W:      240,
+  MENU_PLAY_BTN_H:      64,
+  MENU_PLAY_BTN_FONT:   22,
   MENU_SHOP_BTN_W:      230,
   MENU_SHOP_BTN_H:      58,
-  MENU_SHOP_BTN_FONT:   20,
+  MENU_SHOP_BTN_FONT:   18,
 
   // ── Screen layout — countdown ──────────────────────────────────────────────
   COUNTDOWN_TIMER_START:    3.99,
@@ -352,16 +352,18 @@ export const CFG = {
   // ── Screen layout — end ────────────────────────────────────────────────────
   END_OVERLAY_ALPHA:  0.55,
   END_TITLE_Y_FRAC:   0.33,
-  END_KILLS_Y_FRAC:   0.42,
-  END_MONEY_Y_FRAC:   0.48,
-  END_BTN_Y_FRAC:     0.60,
-  END_TITLE_FONT:     52,
-  END_STATS_FONT:     26,
+  END_KILLS_Y_FRAC:   0.45,   // (Shifted down for space)
+  END_MONEY_Y_FRAC:   0.50,
+  END_BTN_Y_FRAC:     0.65,   // (Shifted down for space)
+  END_TITLE_FONT:     44,     // (Reduced from 52)
+  END_STATS_FONT:     22,     // (Reduced from 26)
+  END_RECORD_TITLE_FONT: 24,  // New
+  END_RECORD_VAL_FONT:   28,  // New
   END_SHADOW_BLUR:    28,
-  END_BTN_W:          190,
-  END_BTN_H:          60,
-  END_BTN_FONT:       20,
-  END_BTN_X_OFFSET:   108,
+  END_BTN_W:          170,    // (Slightly narrower)
+  END_BTN_H:          54,     // (Slightly shorter)
+  END_BTN_FONT:       18,     // (Reduced from 20)
+  END_BTN_X_OFFSET:   95,     // (Reduced from 108)
 
   // ── Permanent upgrade shop ─────────────────────────────────────────────────
   COST_SCALE_FACTOR:      2,

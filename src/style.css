@@ -30,22 +30,23 @@ body {
 
 .layout {
   width: min(540px, 100%);
+  container-type: inline-size;
 }
 
 .hud {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 1.5cqw;
+  margin-bottom: 1.5cqw;
   font-weight: 600;
-  font-size: clamp(0.32rem, 0.8vw, 0.4rem);
+  font-size: 3.5cqw;
 }
 
 .canvas-wrap {
   position: relative;
   width: 100%;
-  border: 2px solid #1e293b;
-  border-radius: 10px;
+  border: 0.4cqw solid #1e293b;
+  border-radius: 2cqw;
   overflow: hidden;
 }
 
@@ -67,48 +68,48 @@ canvas {
   background: rgba(2, 6, 23, 0.95);
   display: grid;
   place-content: center;
-  gap: 12px;
-  padding: 20px;
+  gap: 2cqw;
+  padding: 4cqw;
   text-align: center;
   overflow-y: auto;
   z-index: 20;
 }
 
 .shop h2 {
-  font-size: clamp(2rem, 6vw, 3rem);
+  font-size: 7cqw;
   margin: 0;
 }
 
 #shop-summary {
-  font-size: clamp(1.7rem, 5vw, 2.2rem);
+  font-size: 5.5cqw;
   font-weight: 700;
   color: #fbbf24;
-  margin: 4px 0;
+  margin: 1cqw 0;
 }
 
 /* ── In-run upgrade panel (floating side card) ── */
 .upgrade-panel {
   position: absolute;
   top: 50%;
-  right: 14px;
+  right: 2cqw;
   transform: translateY(-50%);
-  width: min(300px, 36%);
+  width: min(300px, 38%);
   background: rgba(8, 14, 35, 0.87);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 2px solid rgba(124, 58, 237, 0.7);
-  border-radius: 14px;
+  border: 0.4cqw solid rgba(124, 58, 237, 0.7);
+  border-radius: 2.5cqw;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px 14px;
+  gap: 1.8cqw;
+  padding: 2.5cqw 2cqw;
   text-align: center;
   z-index: 10;
-  box-shadow: 0 0 28px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 0 5cqw rgba(124, 58, 237, 0.35);
 }
 
 .upgrade-panel h2 {
-  font-size: clamp(1.2rem, 3vw, 1.7rem);
+  font-size: 3.5cqw;
   margin: 0;
   color: #c4b5fd;
 }
@@ -116,19 +117,19 @@ canvas {
 .upgrade-choice-btn {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 10px 12px;
+  gap: 0.5cqw;
+  padding: 1.5cqw 2cqw;
   text-align: left;
 }
 
 .upg-label {
-  font-size: clamp(1.25rem, 3vw, 1.6rem);
+  font-size: 3.2cqw;
   font-weight: 700;
   color: #fff;
 }
 
 .upg-desc {
-  font-size: clamp(0.85rem, 2vw, 1.0rem);
+  font-size: 2.2cqw;
   color: #94a3b8;
   font-weight: 400;
 }
@@ -139,21 +140,21 @@ canvas {
 
 .shop-actions {
   display: grid;
-  gap: 8px;
+  gap: 1.5cqw;
 }
 
 button {
   border: 0;
-  border-radius: 8px;
-  padding: 12px 14px;
-  font-size: clamp(1.64rem, 4vw, 1.96rem);
+  border-radius: 1.5cqw;
+  padding: 2cqw 2.5cqw;
+  font-size: 4cqw;
   cursor: pointer;
   touch-action: manipulation;
 }
 
 /* Smaller font inside the upgrade panel buttons */
 .upgrade-panel button {
-  font-size: clamp(1.1rem, 2.6vw, 1.45rem);
+  font-size: 3.2cqw;
 }
 
 .shop-btn {
@@ -161,9 +162,9 @@ button {
   color: white;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 0.5cqw;
   text-align: left;
-  padding: 12px 16px;
+  padding: 2cqw 3cqw;
   transition: transform 0.1s ease;
 }
 
@@ -173,13 +174,13 @@ button {
 }
 
 .shop-btn-title {
-  font-size: clamp(1.3rem, 3.5vw, 1.7rem);
+  font-size: 3.8cqw;
   font-weight: 700;
   color: #fff;
 }
 
 .shop-btn-sub {
-  font-size: clamp(0.85rem, 2.2vw, 1.05rem);
+  font-size: 2.5cqw;
   color: #bfdbfe;
   font-weight: 400;
   opacity: 0.85;
