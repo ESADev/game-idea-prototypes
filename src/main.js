@@ -194,6 +194,8 @@ const state = {
   fireTimer:    0,
   ammo:         CFG.AMMO_MAX_BASE,
   lastFireTime: -999,
+  emptyAmmoHoldTime: 0,
+  emptyAmmoWarnShown: false,
 
   // ── Boss / horde / tier / notification ──────────────────────────────────
   boss:          null,               // boss object while alive, null otherwise
@@ -354,6 +356,8 @@ function resetRun() {
   state.coinPickups    = []
   state.explosions     = []
   state.lastFireTime   = -999
+  state.emptyAmmoHoldTime = 0
+  state.emptyAmmoWarnShown = false
 
   state.inRunUpgrades      = { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0, ammoCapacity: 0 }
   state.inRunUpgradesCount = 0
@@ -436,6 +440,23 @@ function updateAmmo(dt) {
   if (state.time - state.lastFireTime >= CFG.AMMO_REGEN_DELAY) {
     state.ammo = Math.min(getMaxAmmo(), state.ammo + CFG.AMMO_REGEN_RATE * dt)
   }
+}
+
+function updateOutOfAmmoWarning(dt) {
+  const tryingToShoot = mouseDown || keys.shoot
+  const isOutOfAmmo = state.ammo < CFG.AMMO_COST_PER_VOLLEY
+
+  if (tryingToShoot && isOutOfAmmo) {
+    state.emptyAmmoHoldTime += dt
+    if (!state.emptyAmmoWarnShown && state.emptyAmmoHoldTime >= CFG.AMMO_EMPTY_WARN_HOLD) {
+      triggerNotification('🚫 MERMİ BİTTİ!', '#ef4444', { yFrac: 0.5, font: 44, duration: 1.2 })
+      state.emptyAmmoWarnShown = true
+    }
+    return
+  }
+
+  state.emptyAmmoHoldTime = 0
+  if (!tryingToShoot || !isOutOfAmmo) state.emptyAmmoWarnShown = false
 }
 
 function fireBullets() {
@@ -1772,15 +1793,12 @@ function loop(now) {
     if (state.fireTimer <= 0) {
       state.fireTimer = 1 / getFireRate()
       if ((mouseDown || keys.shoot) && state.ammo >= CFG.AMMO_COST_PER_VOLLEY) {
-        const prevAmmo = state.ammo
         fireBullets()
         state.ammo -= CFG.AMMO_COST_PER_VOLLEY
-        if (prevAmmo > 0 && state.ammo <= 0) {
-          triggerNotification('🚫 MERMİ BİTTİ!', '#ef4444', { yFrac: 0.5, font: 44, duration: 1.2 })
-        }
       }
     }
     updateAmmo(dt)
+    updateOutOfAmmoWarning(dt)
 
     // Schedule: boss / horde / tier
     checkSchedule()

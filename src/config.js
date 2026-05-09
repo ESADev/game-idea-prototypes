@@ -70,6 +70,7 @@ export const CFG = {
   AMMO_REGEN_DELAY:           0.6,  // seconds after releasing fire before regen begins
   AMMO_CAPACITY_PER_UPGRADE:  25,   // +max ammo per ammoCapacity in-run upgrade level
   AMMO_LOW_THRESHOLD:         0.25, // below this fill fraction the bar pulses red
+  AMMO_EMPTY_WARN_HOLD:       0.8,  // hold-fire duration at zero ammo before warning appears
 
   // ── Ammo bar UI ────────────────────────────────────────────────────────────
   AMMO_BAR_H:                   14,  // height of ammo bar (px)
