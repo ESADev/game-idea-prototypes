@@ -256,9 +256,9 @@ export const CFG = {
   CASTLE_WINDOW_Y_OFFSET:    14,
 
   // ── Castle Damage Particles ────────────────────────────────────────────────
-  CASTLE_PARTICLE_COUNT:    8,
+  CASTLE_PARTICLE_COUNT:    16,
   CASTLE_PARTICLE_MAX_AGE:  1.0,
-  CASTLE_PARTICLE_SPEED:    150,
+  CASTLE_PARTICLE_SPEED:    300,
 
   // ── Animation pulse frequencies ────────────────────────────────────────────
   ANIM_CASTLE_HP_PULSE_FREQ:        8,
