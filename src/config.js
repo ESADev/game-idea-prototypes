@@ -25,144 +25,138 @@ export const CFG = {
   // ── Crystal drops ──────────────────────────────────────────────────────────
   CRYSTAL_BASE_COST:      5,     // crystals needed for the very first in-run upgrade
   CRYSTAL_COST_MULT:      1.55,  // each upgrade makes the next one cost ×this much
-                                  // NOTE: crystal income also scales ×5 with spawn rate, so this
-                                  // curve stays balanced — ~5 upgrades per minute at target pace
-  CRYSTAL_DROP_CHANCE:    1.0,   // 1.0 = guaranteed drop every kill
-  CRYSTAL_VALUE_MIN:      1,     // minimum crystals per drop (triangular dist)
-  CRYSTAL_VALUE_MAX:      3,     // maximum crystals per drop
-  CRYSTAL_SPEED_MIN:      272,   // fall speed px/s (min)
-  CRYSTAL_SPEED_MAX:      374,   // fall speed px/s (max)
-  CRYSTAL_SPREAD_X:       44,    // ± horizontal scatter around kill point (px)
-  CRYSTAL_SPREAD_Y:       22,    // ± vertical   scatter around kill point (px)
-  CRYSTAL_MAGNET_PULL:    1.8,   // x-snap factor per second when magnet active
-  CRYSTAL_MAGNET_ACCEL:   70,    // vy acceleration px/s² with magnet
-  CRYSTAL_MAGNET_MAX_VY:  190,   // max fall speed px/s with magnet
-  CRYSTAL_PICKUP_RADIUS:  12,    // collection hitbox half-size (px)
-  CRYSTAL_PICKUP_MARGIN:  4,     // extra overlap margin when checking turret contact (px)
-  CRYSTAL_VISUAL_HALF_H:  9,     // half-height of the diamond crystal sprite (px)
-  CRYSTAL_VISUAL_HALF_W:  7,     // half-width  of the diamond crystal sprite (px)
+  CRYSTAL_DROP_CHANCE:    1.0,   
+  CRYSTAL_VALUE_MIN:      1,     
+  CRYSTAL_VALUE_MAX:      3,     
+  CRYSTAL_SPEED_MIN:      272,   
+  CRYSTAL_SPEED_MAX:      374,   
+  CRYSTAL_SPREAD_X:       44,    
+  CRYSTAL_SPREAD_Y:       22,    
+  CRYSTAL_MAGNET_PULL:    1.8,   
+  CRYSTAL_MAGNET_ACCEL:   70,    
+  CRYSTAL_MAGNET_MAX_VY:  190,   
+  CRYSTAL_PICKUP_RADIUS:  12,    
+  CRYSTAL_PICKUP_MARGIN:  4,     
+  CRYSTAL_VISUAL_HALF_H:  9,     
+  CRYSTAL_VISUAL_HALF_W:  7,     
 
   // ── Crystal bar UI ─────────────────────────────────────────────────────────
-  CRYSTAL_BAR_H:                  14,   // height of crystal progress bar (px)
-  CRYSTAL_BAR_Y:                  3,    // top-of-canvas y offset (px)
-  CRYSTAL_BAR_MARGIN:             4,    // left/right canvas margin (px)
-  CRYSTAL_BAR_TICK_MAX_COST:      15,   // only draw segment ticks when next cost ≤ this
-  CRYSTAL_BAR_PULSE_THRESHOLD:    0.8,  // fill fraction at which bar starts glowing
-  CRYSTAL_BAR_PULSE_FREQ:         10,   // glow oscillation frequency (rad/s)
-  CRYSTAL_BAR_PULSE_SHADOW_BASE:  8,    // base shadowBlur when pulsing
-  CRYSTAL_BAR_PULSE_SHADOW_AMP:   5,    // amplitude added to shadowBlur
+  CRYSTAL_BAR_H:                  14,   
+  CRYSTAL_BAR_Y:                  3,    
+  CRYSTAL_BAR_MARGIN:             4,    
+  CRYSTAL_BAR_TICK_MAX_COST:      15,   
+  CRYSTAL_BAR_PULSE_THRESHOLD:    0.8,  
+  CRYSTAL_BAR_PULSE_FREQ:         10,   
+  CRYSTAL_BAR_PULSE_SHADOW_BASE:  8,    
+  CRYSTAL_BAR_PULSE_SHADOW_AMP:   5,    
 
   // ── Coin drops ─────────────────────────────────────────────────────────────
-  COIN_DROP_CHANCE:        0.3,   // probability a coin drops per normal kill
-  COIN_SPEED_MIN:          493,   // fall speed px/s (min)
-  COIN_SPEED_MAX:          646,   // fall speed px/s (max)
-  COIN_SPREAD_X:           24,    // ± horizontal scatter for normal enemies (px)
-  COIN_ELITE_SPREAD_MULT:  1.5,   // scatter multiplier for elite enemy coin drops
-  COIN_VALUE:              2,     // bonus money awarded on pickup
-  COIN_RADIUS:             9,     // visual + hitbox radius (px)
-  COIN_PICKUP_RADIUS:      10,    // collection hitbox half-size (px)
-  COIN_PICKUP_MARGIN:      4,     // extra overlap margin when checking turret contact (px)
+  COIN_DROP_CHANCE:        0.3,   
+  COIN_SPEED_MIN:          493,   
+  COIN_SPEED_MAX:          646,   
+  COIN_SPREAD_X:           24,    
+  COIN_ELITE_SPREAD_MULT:  1.5,   
+  COIN_VALUE:              2,     
+  COIN_RADIUS:             9,     
+  COIN_PICKUP_RADIUS:      10,    
+  COIN_PICKUP_MARGIN:      4,     
 
   // ── Ammo system ────────────────────────────────────────────────────────────
-  AMMO_MAX_BASE:              35,   // base maximum ammo before any upgrade
-  AMMO_COST_PER_VOLLEY:       1,    // ammo consumed per fireBullets() call
-  AMMO_REGEN_RATE:            15,   // ammo per second regenerated when not holding fire
-  AMMO_REGEN_DELAY:           0.6,  // seconds after releasing fire before regen begins
-  AMMO_CAPACITY_PER_UPGRADE:  25,   // +max ammo per ammoCapacity in-run upgrade level
-  AMMO_LOW_THRESHOLD:         0.25, // below this fill fraction the bar pulses red
-  AMMO_EMPTY_WARN_HOLD:       0.8,  // hold-fire duration at zero ammo before warning appears
+  AMMO_MAX_BASE:              35,   
+  AMMO_COST_PER_VOLLEY:       1,    
+  AMMO_REGEN_RATE:            15,   
+  AMMO_REGEN_DELAY:           0.6,  
+  AMMO_CAPACITY_PER_UPGRADE:  25,   
+  AMMO_LOW_THRESHOLD:         0.25, 
+  AMMO_EMPTY_WARN_HOLD:       0.8,  
 
   // ── Ammo bar UI ────────────────────────────────────────────────────────────
-  AMMO_BAR_H:                   14,  // height of ammo bar (px)
-  AMMO_BAR_TOP_MARGIN:          2,   // gap between crystal bar and ammo bar (px)
-  AMMO_BAR_PULSE_FREQ:          14,  // glow oscillation frequency when low (rad/s)
-  AMMO_BAR_PULSE_SHADOW_BASE:   8,   // base shadowBlur when ammo bar is pulsing
-  AMMO_BAR_PULSE_SHADOW_AMP:    5,   // amplitude added to shadowBlur during low-ammo pulse
+  AMMO_BAR_H:                   14,  
+  AMMO_BAR_TOP_MARGIN:          2,   
+  AMMO_BAR_PULSE_FREQ:          14,  
+  AMMO_BAR_PULSE_SHADOW_BASE:   8,   
+  AMMO_BAR_PULSE_SHADOW_AMP:    5,   
 
   // ── Bullet spread (multi-barrel) ───────────────────────────────────────────
-  BULLET_SPREAD_PX:         15,  // px gap between adjacent bullets in a volley
-  BULLET_SIDE_ANGLE_DEG:    10,  // degrees of outward angle per step away from center barrel
+  BULLET_SPREAD_PX:         15,  
+  BULLET_SIDE_ANGLE_DEG:    10,  
 
   // ── Turret ─────────────────────────────────────────────────────────────────
-  TURRET_BASE_SPEED:         700,  // px/s horizontal movement at full steering input
-  TURRET_ACCEL_RATE:         14,   // acceleration factor toward target speed
-  TURRET_DECEL_RATE:         20,   // deceleration factor when no steering input
-  TURRET_STEER_DEADZONE:     2,    // ignore pointer if |diff| ≤ this (px)
-  TURRET_SNAP_MARGIN:        1,    // snap turret to pointer if within this distance (px)
-  TURRET_WIDTH:              60,   // body width  (px)
-  TURRET_HEIGHT:             28,   // body height (px)
-  TURRET_BARREL_W:           10,   // barrel width  (px)
-  TURRET_BARREL_H:           26,   // barrel height (px)
-  TURRET_BARREL_SHADOW_BLUR: 8,    // shadowBlur on barrel glow
-  TURRET_MAX_HP:             100,  // turret hit points
-  TURRET_HP_PER_HIT:         15,   // damage when enemy body contacts turret (reduced for survivability)
-  TURRET_HP_REGEN_RATE:      5,    // HP/s regained after regen delay
-  TURRET_HP_REGEN_DELAY:     2.5,  // seconds of no hits before regen kicks in
+  TURRET_BASE_SPEED:         700,  
+  TURRET_ACCEL_RATE:         14,   
+  TURRET_DECEL_RATE:         20,   
+  TURRET_STEER_DEADZONE:     2,    
+  TURRET_SNAP_MARGIN:        1,    
+  TURRET_WIDTH:              60,   
+  TURRET_HEIGHT:             28,   
+  TURRET_BARREL_W:           10,   
+  TURRET_BARREL_H:           26,   
+  TURRET_BARREL_SHADOW_BLUR: 8,    
+  TURRET_MAX_HP:             100,  
+  TURRET_HP_PER_HIT:         15,   
+  TURRET_HP_REGEN_RATE:      5,    
+  TURRET_HP_REGEN_DELAY:     2.5,  
 
   // ── Turret visual ──────────────────────────────────────────────────────────
-  TURRET_HP_BAR_EXTRA_W:      12,  // extra width beyond body on each side for HP bar (px)
-  TURRET_HP_BAR_Y_GAP:        5,   // gap between turret body bottom and HP bar top (px)
-  TURRET_HP_BAR_H:            8,   // height of the turret HP bar (px)
-  TURRET_SHIELD_INSET:        6,   // px the shield border extends beyond turret body edges
-  TURRET_SHIELD_LINE_W:       3,   // stroke width of shield border (px)
-  TURRET_SHIELD_SHADOW_BLUR:  14,  // shadowBlur for shield glow effect
-  TURRET_ACCENT_STRIPE_H:     4,   // height of accent color stripe at bottom of body (px)
-  TURRET_SHIELD_FONT:         11,  // font size for shield stack count label (px)
+  TURRET_HP_BAR_EXTRA_W:      12,  
+  TURRET_HP_BAR_Y_GAP:        5,   
+  TURRET_HP_BAR_H:            8,   
+  TURRET_SHIELD_INSET:        6,   
+  TURRET_SHIELD_LINE_W:       3,   
+  TURRET_SHIELD_SHADOW_BLUR:  14,  
+  TURRET_ACCENT_STRIPE_H:     4,   
+  TURRET_SHIELD_FONT:         11,  
 
   // ── Bullets ────────────────────────────────────────────────────────────────
-  BULLET_BASE_FIRE_RATE:    3,  // shots per second at base level
-  BULLET_FIRE_RATE_MULT:    1.15, // multiplicative increase per level (~15%)
-  BULLET_BASE_DAMAGE:       45,   // damage per bullet at base level
-  BULLET_DAMAGE_MULT:       1.20, // multiplicative increase per level (~15%)
-  BULLET_SPEED:             700,  // px/s upward
-  BULLET_RADIUS:            5,    // collision and draw radius (px)
-  BULLET_SHADOW_BLUR:       10,   // shadowBlur on bullet glow
-  BULLET_PIERCE_BASE:       0,    // extra enemies a bullet passes through (base)
-  BULLET_PIERCE_PER_LVL:    1,    // +1 pierce per in-run pierce upgrade level
+  BULLET_BASE_FIRE_RATE:    3,  
+  BULLET_FIRE_RATE_MULT:    1.15, 
+  BULLET_BASE_DAMAGE:       45,   
+  BULLET_DAMAGE_MULT:       1.20, 
+  BULLET_SPEED:             700,  
+  BULLET_RADIUS:            5,    
+  BULLET_SHADOW_BLUR:       10,   
+  BULLET_PIERCE_BASE:       0,    
+  BULLET_PIERCE_PER_LVL:    1,    
 
   // ── Explosions ─────────────────────────────────────────────────────────────
-  EXPLOSION_INIT_R:              4,    // starting radius of an explosion (px)
-  EXPLOSION_MAX_AGE:             0.55, // seconds an explosion lasts
-  EXPLOSION_HIT_BULLET_MAXR:    18,   // max radius for bullet-on-enemy hit explosion (px)
-  EXPLOSION_HIT_TURRET_MAXR:    32,   // max radius for enemy-turret contact explosion (px)
-  EXPLOSION_HIT_SHIELD_MAXR:    28,   // max radius for shield absorption explosion (px)
-  EXPLOSION_BREACH_NORMAL_MAXR: 52,   // max radius for normal enemy breach (px)
-  EXPLOSION_BREACH_ELITE_MAXR:  72,   // max radius for elite breach (px)
+  EXPLOSION_INIT_R:              4,    
+  EXPLOSION_MAX_AGE:             0.55, 
+  EXPLOSION_HIT_BULLET_MAXR:    18,   
+  EXPLOSION_HIT_TURRET_MAXR:    32,   
+  EXPLOSION_HIT_SHIELD_MAXR:    28,   
+  EXPLOSION_BREACH_NORMAL_MAXR: 52,   
+  EXPLOSION_BREACH_ELITE_MAXR:  72,   
 
   // ── Enemy (base) ───────────────────────────────────────────────────────────
-  // ★ All time-scale values are tuned for 5× faster progression than original.
-  // Balance formula: PlayerDPS(upgrades) / (EnemyHP(t) × spawnRate(t)) ≈ const
-  // Crystal income ∝ spawnRate, upgrade count ∝ log(crystals), so balance holds.
-  ENEMY_SPAWN_INTERVAL_START:  1.5,    // seconds between spawns at game start (gentler opening)
-  ENEMY_SPAWN_RATE_RAMP:       0.005,  // interval reduction per second
-  ENEMY_SPAWN_INTERVAL_MIN:    0.05,   // hard floor — still reaches high density but not instant
-  ENEMY_MAX_COUNT:             600,    // max simultaneous enemies (raised for horde effect)
-  ENEMY_BASE_RADIUS:           21,     // base radius (px)
-  ENEMY_RADIUS_VARIANCE:       6,      // ± random radius variation (px)
-  ENEMY_BASE_SPEED:            25,     // base movement speed (px/s) — reduced for survivability
-  ENEMY_SPEED_VARIANCE:        20,     // random speed addition per enemy (px/s)
-  ENEMY_SPEED_TIME_SCALE:      1.5,    // px/s additive bonus per second (tamed — was 5.0)
-  ENEMY_SPEED_TIME_CAP:        90,     // max additive speed bonus
-  ENEMY_TOP_SPAWN_CHANCE:      0.65,   // fraction spawning from top edge
-  ENEMY_LEFT_SPAWN_CHANCE:     0.82,   // cumulative fraction for left-side spawn
-  ENEMY_SIDE_Y_FRACTION:       0.55,   // side enemies spawn in top this fraction of canvas
-  ENEMY_SPAWN_MARGIN:          28,     // px kept from each side edge for top spawns
-  ENEMY_BREACH_DECEL:          220,    // px/s² deceleration after breach line
-  ENEMY_CASTLE_DAMAGE:         15,     // HP removed from castle per normal enemy explosion
-  ENEMY_BASE_HP:               20,     // base hit points for a normal enemy (reduced for early kills)
-  ENEMY_HP_TIME_SCALE:         0.4,    // +HP per second of play time (gentler curve)
-  ENEMY_HP_TIME_CAP:           1000,    // max HP bonus from time scaling
-  ENEMY_BREACH_EXPLOSION_MARGIN: 5,    // px above castle floor for breach explosion
+  ENEMY_SPAWN_INTERVAL_START:  1.5,    
+  ENEMY_SPAWN_RATE_RAMP:       0.005,  
+  ENEMY_SPAWN_INTERVAL_MIN:    0.05,   
+  ENEMY_MAX_COUNT:             600,    
+  ENEMY_BASE_RADIUS:           21,     
+  ENEMY_RADIUS_VARIANCE:       6,      
+  ENEMY_BASE_SPEED:            25,     
+  ENEMY_SPEED_VARIANCE:        20,     
+  ENEMY_SPEED_TIME_SCALE:      1.8,    
+  ENEMY_SPEED_TIME_CAP:        90,     
+  ENEMY_TOP_SPAWN_CHANCE:      0.65,   
+  ENEMY_LEFT_SPAWN_CHANCE:     0.82,   
+  ENEMY_SIDE_Y_FRACTION:       0.55,   
+  ENEMY_SPAWN_MARGIN:          28,     
+  ENEMY_BREACH_DECEL:          220,    
+  ENEMY_CASTLE_DAMAGE:         15,     
+  ENEMY_BASE_HP:               20,     
+  ENEMY_HP_TIME_SCALE:         0.5,    
+  ENEMY_HP_TIME_CAP:           1000,    
+  ENEMY_BREACH_EXPLOSION_MARGIN: 5,    
 
   // ── Global speed multiplier ramp ───────────────────────────────────────────
-  // On top of additive bonus; creates late-game escalation
-  ENEMY_SPEED_MULT_START:      1.25,   // multiplier at t=0
-  ENEMY_SPEED_MULT_MAX:        2.5,   // maximum multiplier (reduced ceiling)
-  ENEMY_SPEED_MULT_RAMP_TIME:  1200,   // seconds to reach max — 5 min (gives player time to upgrade)
+  ENEMY_SPEED_MULT_START:      1.25,   
+  ENEMY_SPEED_MULT_MAX:        2.5,   
+  ENEMY_SPEED_MULT_RAMP_TIME:  1200,   
 
   // ── Enemy visual ───────────────────────────────────────────────────────────
-  ENEMY_HP_BAR_H:   4,  // height of HP bar above enemy (px)
-  ENEMY_HP_BAR_GAP: 2,  // gap between enemy top and HP bar (px)
+  ENEMY_HP_BAR_H:   4,  
+  ENEMY_HP_BAR_GAP: 2,  
 
   // ── Elite enemy ────────────────────────────────────────────────────────────
   ELITE_SPAWN_CHANCE:        0.15,
@@ -175,63 +169,57 @@ export const CFG = {
   ELITE_COIN_CHANCE_3RD:     0.25,
 
   // ── Sprinter enemy ─────────────────────────────────────────────────────────
-  // Rare, low-HP enemy that periodically bursts to 3× speed. Stresses multi-bullet upgrades.
-  SPRINTER_SPAWN_CHANCE:      0.07,  // probability (of non-elite spawns) that enemy is a sprinter
-  SPRINTER_HP_MULT:           0.55,  // HP multiplier vs normal enemy (fragile)
-  SPRINTER_SPEED_MULT:        1.1,   // base speed multiplier (slightly faster baseline)
-  SPRINTER_SPRINT_SPEED_MULT: 3.2,   // speed multiplier during a sprint burst
-  SPRINTER_SPRINT_DURATION:   0.7,   // seconds of sprint burst
-  SPRINTER_REST_DURATION:     2.2,   // seconds between sprint bursts
+  SPRINTER_SPAWN_CHANCE:      0.07,  
+  SPRINTER_HP_MULT:           0.55,  
+  SPRINTER_SPEED_MULT:        1.1,   
+  SPRINTER_SPRINT_SPEED_MULT: 3.2,   
+  SPRINTER_SPRINT_DURATION:   0.7,   
+  SPRINTER_REST_DURATION:     2.2,   
 
   // ── Enemy tier upgrades ────────────────────────────────────────────────────
-  // Periodic enemy strengthening at t = 240 + 180k seconds (4:00, 7:00, 10:00 …)
-  // Player should feel challenged but barely survive initial tier; feel strong before next tier.
-  // HP×(1 + tier×0.40) and speed×(1 + tier×0.20) on top of time scaling.
-  TIER_FIRST_TIME:         180,   // first tier upgrade at 4:00 (seconds)
-  TIER_PERIOD:             180,   // tier upgrades every 3 min after that
-  TIER_HP_MULT_PER_TIER:   0.30,  // +40% HP per tier level (additive multiplier delta)
-  TIER_SPEED_MULT_PER_TIER: 0.15, // +20% speed per tier level
+  TIER_FIRST_TIME:         180,   
+  TIER_PERIOD:             180,   
+  TIER_HP_MULT_PER_TIER:   0.40,  
+  TIER_SPEED_MULT_PER_TIER: 0.20, 
 
   // ── Boss system ────────────────────────────────────────────────────────────
-  // Two mechanics: (1) phase-2 shield at 50% HP, (2) periodic charge dash.
-  BOSS_FIRST_TIME:          60,   // first boss at 2:00 (seconds)
-  BOSS_PERIOD:              180,   // new boss every 3 min (2, 5, 8...)
-  BOSS_RADIUS:               48,   // boss circle radius (px)
-  BOSS_HP_BASE:             1000,  // HP of the first boss
-  BOSS_HP_PER_WAVE:          600,  // additional HP per subsequent boss
-  BOSS_DESCENT_SPEED:        80,   // px/s downward while descending to hover height
-  BOSS_HOVER_OFFSET:        130,   // px above turret to hover (from turret top edge)
-  BOSS_TRACK_SPEED:          45,   // px/s horizontal tracking of turret (slow menace)
-  BOSS_CHARGE_INTERVAL_INIT: 5.0,  // seconds until first charge (gives descent time)
-  BOSS_CHARGE_INTERVAL:      4.5,  // seconds between subsequent charges
-  BOSS_CHARGE_SPEED:         320,  // px/s horizontal charge speed
-  BOSS_ENRAGE_TIME:          30,   // seconds after which boss enrages (gets faster)
-  BOSS_ENRAGE_TRACK_MULT:    3.5,  // tracking speed multiplier when enraged
-  BOSS_SHIELD_DURATION:      2.5,  // seconds of phase-2 invulnerability
-  BOSS_TURRET_DAMAGE:        40,   // HP removed from turret on boss contact
-  BOSS_CRYSTAL_DROP:         14,   // crystals dropped on boss death
-  BOSS_COIN_DROP_MIN:         3,   // minimum coins on boss death
-  BOSS_COIN_CHANCE_EXTRA_1:  0.8,  // chance of 4th coin
-  BOSS_COIN_CHANCE_EXTRA_2:  0.5,  // chance of 5th coin
-  BOSS_MONEY_REWARD:          8,   // flat money bonus on boss death
+  BOSS_FIRST_TIME:          60,   
+  BOSS_PERIOD:              180,   
+  BOSS_RADIUS:               48,   
+  BOSS_HP_BASE:             1000,  
+  BOSS_HP_PER_WAVE:          600,  
+  BOSS_DESCENT_SPEED:        80,   
+  BOSS_HOVER_OFFSET:        130,   
+  BOSS_TRACK_SPEED:          45,   
+  BOSS_CHARGE_INTERVAL_INIT: 5.0,  
+  BOSS_CHARGE_INTERVAL:      4.5,  
+  BOSS_CHARGE_SPEED:         320,  
+  BOSS_ENRAGE_TIME:          30,   
+  BOSS_ENRAGE_TRACK_MULT:    3.5,  
+  BOSS_SHIELD_DURATION:      2.5,  
+  BOSS_TURRET_DAMAGE:        40,   
+  BOSS_CRYSTAL_DROP:         14,   
+  BOSS_COIN_DROP_MIN:         3,   
+  BOSS_COIN_CHANCE_EXTRA_1:  0.8,  
+  BOSS_COIN_CHANCE_EXTRA_2:  0.5,  
+  BOSS_MONEY_REWARD:          8,   
 
   // ── Horde system ───────────────────────────────────────────────────────────
-  // Flood of enemies for a fixed duration; spawn interval overrides normal rate.
-  HORDE_FIRST_TIME:      120,   // first horde at 3:00 (seconds)
-  HORDE_PERIOD:          180,   // horde every 3 min (3, 6, 9...)
-  HORDE_DURATION:         30,   // seconds the horde lasts (prolonged)
-  HORDE_SPAWN_INTERVAL:  0.25,  // enemy spawn interval during horde (reduced intensity)
+  HORDE_FIRST_TIME:      120,   
+  HORDE_PERIOD:          180,   
+  HORDE_DURATION:         30,   
+  HORDE_SPAWN_INTERVAL:  0.25,  
 
   // ── Developer tools ────────────────────────────────────────────────────────
-  DEV_ENABLED:       true,  // show dev button in menu
-  DEV_TIMEWARP_MULT: 2.5,   // speed multiplier for timewarp
+  DEV_ENABLED:       true,  
+  DEV_TIMEWARP_MULT: 2.5,   
 
   // ── Notification overlay ───────────────────────────────────────────────────
-  NOTIF_DURATION:       3.2,  // seconds notification stays visible
-  NOTIF_FONT:            28,  // font size (px)
-  NOTIF_Y_FRAC:         0.38, // canvas-height fraction for notification center
-  NOTIF_BG_PAD_TOP:        8, // top padding for notification background (px)
-  NOTIF_BG_PAD_BOTTOM:    18, // bottom padding for notification background (px)
+  NOTIF_DURATION:       3.2,  
+  NOTIF_FONT:            28,  
+  NOTIF_Y_FRAC:         0.38, 
+  NOTIF_BG_PAD_TOP:        8, 
+  NOTIF_BG_PAD_BOTTOM:    18, 
 
   // ── Castle ─────────────────────────────────────────────────────────────────
   CASTLE_MAX_HP:  300,
@@ -276,7 +264,7 @@ export const CFG = {
   ANIM_ELITE_PULSE_FREQ:            6,
   ANIM_ELITE_PULSE_BASE:            10,
   ANIM_ELITE_PULSE_AMP:             4,
-  ANIM_SPRINTER_PULSE_FREQ:         16,  // fast glow when sprinting
+  ANIM_SPRINTER_PULSE_FREQ:         16,  
   ANIM_SPRINTER_PULSE_BASE:         12,
   ANIM_SPRINTER_PULSE_AMP:          8,
   ANIM_BOSS_PULSE_FREQ:             5,
@@ -352,18 +340,18 @@ export const CFG = {
   // ── Screen layout — end ────────────────────────────────────────────────────
   END_OVERLAY_ALPHA:  0.55,
   END_TITLE_Y_FRAC:   0.33,
-  END_KILLS_Y_FRAC:   0.45,   // (Shifted down for space)
+  END_KILLS_Y_FRAC:   0.45,   
   END_MONEY_Y_FRAC:   0.50,
-  END_BTN_Y_FRAC:     0.65,   // (Shifted down for space)
-  END_TITLE_FONT:     44,     // (Reduced from 52)
-  END_STATS_FONT:     22,     // (Reduced from 26)
-  END_RECORD_TITLE_FONT: 24,  // New
-  END_RECORD_VAL_FONT:   28,  // New
+  END_BTN_Y_FRAC:     0.65,   
+  END_TITLE_FONT:     44,     
+  END_STATS_FONT:     22,     
+  END_RECORD_TITLE_FONT: 24,  
+  END_RECORD_VAL_FONT:   28,  
   END_SHADOW_BLUR:    28,
-  END_BTN_W:          170,    // (Slightly narrower)
-  END_BTN_H:          54,     // (Slightly shorter)
-  END_BTN_FONT:       18,     // (Reduced from 20)
-  END_BTN_X_OFFSET:   95,     // (Reduced from 108)
+  END_BTN_W:          170,    
+  END_BTN_H:          54,     
+  END_BTN_FONT:       18,     
+  END_BTN_X_OFFSET:   95,     
 
   // ── Permanent upgrade shop ─────────────────────────────────────────────────
   COST_SCALE_FACTOR:      2,
@@ -373,12 +361,12 @@ export const CFG = {
   COST_BASE_BULLET_COUNT: 120,
 
   // ── Rarity Colors ──────────────────────────────────────────────────────────
-  RARITY_COMMON_HUE:    210,  // 
-  RARITY_RARE_HUE:      300,  // 
-  RARITY_COMMON_SAT:    70,   // % (Muted for common)
-  RARITY_RARE_SAT:      95,   // % (Vibrant for rare)
-  RARITY_COMMON_LIGHT:  25,   // % (Dark for common)
-  RARITY_RARE_LIGHT:    35,   // % (Brighter for rare)
+  RARITY_COMMON_HUE:    145,  
+  RARITY_RARE_HUE:      275,  
+  RARITY_COMMON_SAT:    50,   
+  RARITY_RARE_SAT:      85,   
+  RARITY_COMMON_LIGHT:  22,   
+  RARITY_RARE_LIGHT:    35,   
 
   // ── In-run upgrade weights (relative probability) ──────────────────────────
   WEIGHT_FIRE_RATE:     10,

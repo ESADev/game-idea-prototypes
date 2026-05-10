@@ -1510,11 +1510,10 @@ function drawMenuScreen() {
 
   ctx.fillStyle = '#475569'
   ctx.font      = `${CFG.MENU_TIP_FONT}px Inter, system-ui, sans-serif`
-  ctx.textAlign = 'center'
   ctx.fillText('Ateş etmek için basılı tut', world.w / 2, Math.round(world.h * CFG.MENU_TIP1_Y_FRAC))
   ctx.fillText('Hareket etmek için sürükle', world.w / 2, Math.round(world.h * CFG.MENU_TIP2_Y_FRAC))
 
-  ctx.textAlign = 'left'
+  ctx.textAlign = 'middle'
 }
 
 function drawCountdownScreen() {
@@ -1584,19 +1583,18 @@ function drawEndScreen() {
     ctx.shadowBlur  = CFG.ANIM_RECORD_GLOW_MAX * (0.5 + 0.5 * pulse) * CFG.ANIM_RECORD_INTENSITY
     ctx.shadowColor = '#eab308'
     ctx.fillStyle   = '#facc15'
-    ctx.font        = `bold ${CFG.END_RECORD_TITLE_FONT}px Inter, system-ui, sans-serif`
+    ctx.font        = 'bold 28px Inter, system-ui, sans-serif'
     ctx.textAlign   = 'center'
     ctx.fillText('Muhteşem!', 0, 0)
     ctx.fillText('Yeni Rekor:', 0, 34)
-    ctx.font        = `bold ${CFG.END_RECORD_VAL_FONT}px Inter, system-ui, sans-serif`
     ctx.fillText(String(state.bestScore), 0, 68)
     ctx.restore()
   } else {
     ctx.fillStyle = '#94a3b8'
-    ctx.font      = `bold ${CFG.END_RECORD_VAL_FONT + 4}px Inter, system-ui, sans-serif`
+    ctx.font      = 'bold 32px Inter, system-ui, sans-serif'
     ctx.textAlign = 'center'
     ctx.fillText(`Skor: ${currentRunScore}`, midW, Math.round(world.h * (CFG.END_TITLE_Y_FRAC - 0.12)))
-    ctx.font      = `bold ${CFG.END_RECORD_TITLE_FONT - 8}px Inter, system-ui, sans-serif`
+    ctx.font      = 'bold 16px Inter, system-ui, sans-serif'
     ctx.fillText(`Rekor: ${state.bestScore}`, midW, Math.round(world.h * (CFG.END_TITLE_Y_FRAC - 0.07)))
   }
 

@@ -33,15 +33,6 @@ body {
   container-type: inline-size;
 }
 
-.hud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5cqw;
-  margin-bottom: 1.5cqw;
-  font-weight: 600;
-  font-size: 3.5cqw;
-}
-
 .canvas-wrap {
   position: relative;
   width: 100%;
@@ -93,7 +84,7 @@ canvas {
   top: 50%;
   right: 2cqw;
   transform: translateY(-50%);
-  width: min(300px, 38%);
+  width: min(300px, 40%);
   background: rgba(8, 14, 35, 0.87);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -118,7 +109,7 @@ canvas {
   display: flex;
   flex-direction: column;
   gap: 0.5cqw;
-  padding: 1.5cqw 2cqw;
+  padding: 1.5vmin 2cqw;
   text-align: left;
 }
 
@@ -192,16 +183,16 @@ button {
 }
 
 .rarity-legend {
-  margin-top: 16px;
+  margin-top: 2.5cqw;
   width: 100%;
-  height: 48px;
+  height: 8cqw;
   background: #1e293b;
   border: 1px solid #334155;
-  border-radius: 8px;
+  border-radius: 1.5cqw;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 2.5cqw;
   position: relative;
   overflow: hidden;
 }
@@ -218,11 +209,11 @@ button {
 
 .legend-label {
   font-weight: 700;
-  font-size: 0.5rem;
+  font-size: 2.2cqw;
   color: #fff;
   text-shadow: 0 1px 3px rgba(0,0,0,0.8);
   z-index: 1;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.1cqw;
 }
 
 /* Dev controls */
