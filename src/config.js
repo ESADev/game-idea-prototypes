@@ -212,8 +212,8 @@ export const CFG = {
   HORDE_SPAWN_INTERVAL:  0.25,  
 
   // ── Developer tools ────────────────────────────────────────────────────────
-  DEV_ENABLED:       true,  
-  DEV_TIMEWARP_MULT: 7.5,   
+  DEV_ENABLED:       false,  
+  DEV_TIMEWARP_MULT: 2.5,   
 
   // ── Notification overlay ───────────────────────────────────────────────────
   NOTIF_DURATION:       3.2,  
