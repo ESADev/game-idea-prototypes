@@ -93,6 +93,10 @@ export const CFG = {
   TURRET_BARREL_W:           10,   
   TURRET_BARREL_H:           26,   
   TURRET_BARREL_SHADOW_BLUR: 8,    
+  TURRET_MAX_HP:             100,  
+  TURRET_HP_PER_HIT:         15,   
+  TURRET_HP_REGEN_RATE:      5,    
+  TURRET_HP_REGEN_DELAY:     2.5,  
 
   // ── Turret visual ──────────────────────────────────────────────────────────
   TURRET_HP_BAR_EXTRA_W:      12,  
@@ -208,7 +212,7 @@ export const CFG = {
   HORDE_SPAWN_INTERVAL:  0.25,  
 
   // ── Developer tools ────────────────────────────────────────────────────────
-  DEV_ENABLED:       true,  
+  DEV_ENABLED:       false,  
   DEV_TIMEWARP_MULT: 2.5,   
 
   // ── Notification overlay ───────────────────────────────────────────────────

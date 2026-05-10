@@ -13,58 +13,44 @@ const IN_RUN_UPGRADE_DEFS = [
   {
     key: 'fireRate',
     weight: () => CFG.WEIGHT_FIRE_RATE,
-    label: 'Daha Hızlı Ateş Et',
-    desc: () => {
-      const cur = getFireRate()
-      return `Seviye ${state.inRunUpgrades.fireRate + 1}'e yükselt! (Mevcut: ${cur.toFixed(1)}/sn)`
-    },
+    label: '🌧️ Daha Hızlı Ateş Et',
+    desc: () => `Seviye ${state.inRunUpgrades.fireRate + 1}'e yükselt!`,
   },
   {
     key: 'bulletDmg',
     weight: () => CFG.WEIGHT_BULLET_DMG,
-    label: 'Daha Güçlü Mermiler',
-    desc: () => {
-      const cur = getBulletDmg()
-      return `Seviye ${state.inRunUpgrades.bulletDmg + 1}'e yükselt! (Mevcut: ${cur} hasar)`
-    },
+    label: '💪 Daha Güçlü Mermiler',
+    desc: () => `Seviye ${state.inRunUpgrades.bulletDmg + 1}'e yükselt!`,
   },
   {
     key: 'pierce',
     weight: () => CFG.WEIGHT_PIERCE,
-    label: 'Düşmanların İçinden Geç',
-    desc: () => `Seviye ${state.inRunUpgrades.pierce + 1}'e yükselt! (Mevcut: ${getPierceLevel()} mermi delme)`,
+    label: '👻 Delici Mermi',
+    desc: () => `Seviye ${state.inRunUpgrades.pierce + 1}'e yükselt!`,
   },
   {
     key: 'shield',
     weight: () => CFG.WEIGHT_SHIELD,
-    label: 'Kaleyi Daha İyi Koru',
-    desc: () => `Seviye ${state.inRunUpgrades.shield + 1}'e yükselt! (Mevcut: ${state.inRunUpgrades.shield} sur kalkanı)`,
+    label: '🛡️ Kaleye 3 Tane Daha Sur Ekle',
+    desc: () => `Seviye ${state.inRunUpgrades.shield + 1}'e yükselt!`,
   },
-  /* magnet removed per feedback
-  {
-    key: 'magnet',
-    weight: () => 0,
-    label: 'Daha Uzaktan Topla',
-    desc: () => 'Kristaller sana gelsin!',
-  },
-  */
   {
     key: 'reloadSpeed',
     weight: () => CFG.WEIGHT_RELOAD_SPEED,
-    label: 'Daha Hızlı Şarjör Yenile',
-    desc: () => `Seviye ${state.inRunUpgrades.reloadSpeed + 1}'e yükselt! (Mevcut: ${getReloadRate().toFixed(1)}/sn)`,
+    label: '⚡ Daha Hızlı Mermi Doldur',
+    desc: () => `Seviye ${state.inRunUpgrades.reloadSpeed + 1}'e yükselt!`,
   },
   {
     key: 'doubleGems',
     weight: () => CFG.WEIGHT_DOUBLE_GEMS,
-    label: 'Daha Çok Kristal Bul',
+    label: '💎 Daha Çok Kristal Düşür',
     desc: () => `Seviye ${state.inRunUpgrades.doubleGems + 1}'e yükselt!`,
   },
   {
     key: 'bulletCount',
     weight: () => CFG.WEIGHT_BULLET_COUNT,
-    label: 'Daha Çok Mermi At',
-    desc: () => `Seviye ${state.inRunUpgrades.bulletCount + 1}'e yükselt! (Mevcut: ${getTotalBullets()} mermi)`,
+    label: '➕2️⃣ Daha Çok Mermi At',
+    desc: () => `Seviye ${state.inRunUpgrades.bulletCount + 1}'e yükselt!`,
   },
 ]
 
@@ -390,6 +376,7 @@ function applyTurretHit(dmg) {
   applyCastleDamage(Math.round(dmg / 2))
 }
 function applyCastleDamage(dmg) {
+  if (isNaN(dmg)) return // prevent NaN bug
   if (state.inRunUpgrades.shield > 0) {
     state.inRunUpgrades.shield -= 1
   } else {
@@ -455,8 +442,9 @@ function updateTurret(dt) {
 }
 
 function updateAmmo(dt) {
-  // Tester: ammo refilling system has 0 time to wait before starting to reload
-  if (state.time - state.lastFireTime >= CFG.AMMO_REGEN_DELAY) {
+  const isFiring = mouseDown || keys.shoot
+  // Reload only if NOT firing. Instant start (0s delay) is handled by !isFiring check.
+  if (!isFiring) {
     state.ammo = Math.min(getMaxAmmo(), state.ammo + getReloadRate() * dt)
   }
 }
@@ -838,17 +826,17 @@ function applyInRunUpgrade(key) {
   else state.inRunUpgrades[key] += 1
 }
 
-function mkShopBtnHTML(emoji, name, level, detail, cost) {
-  return `<span class="shop-btn-title">${emoji} ${name}</span><span class="shop-btn-sub">Seviye ${level}'e yükselt! · ${detail} · 💰 ${cost}</span>`
+function mkShopBtnHTML(emoji, name, targetLevel, cost) {
+  return `<span class="shop-btn-title">${emoji} ${name}</span><span class="shop-btn-sub">Seviye ${targetLevel}'e yükselt! · 💰 ${cost}</span>`
 }
 
 function renderShopButtons() {
   const fc = getCost('fireRate'), dc = getCost('bulletDmg'), pc = getCost('pierce'), bc = getCost('bulletCount'), ac = getCost('ammoCap')
-  buyFireRateBtn.innerHTML = mkShopBtnHTML('🌧️', 'Daha Hızlı Ateş Et', state.upgrades.fireRate, `+%${((CFG.BULLET_FIRE_RATE_MULT - 1) * 100).toFixed(0)} hız`, fc)
-  buyBulletDmgBtn.innerHTML = mkShopBtnHTML('💪', 'Daha Güçlü Mermiler', state.upgrades.bulletDmg, `+%${((CFG.BULLET_DAMAGE_MULT - 1) * 100).toFixed(0)} hasar`, dc)
-  buyPierceBtn.innerHTML = mkShopBtnHTML('👻', 'Düşmanların İçinden Geç', state.upgrades.pierce, '+1 delici', pc)
-  buyBulletCountBtn.innerHTML = mkShopBtnHTML('➕2️⃣', 'Daha Çok Mermi At', state.upgrades.bulletCount, '+2 mermi', bc)
-  buyAmmoCapBtn.innerHTML = mkShopBtnHTML('⛽', 'Daha Büyük Şarjör', state.upgrades.ammoCap, `+${CFG.AMMO_CAPACITY_PER_UPGRADE} kapasite`, ac)
+  buyFireRateBtn.innerHTML = mkShopBtnHTML('🌧️', 'Daha Hızlı Ateş Et', state.upgrades.fireRate + 1, fc)
+  buyBulletDmgBtn.innerHTML = mkShopBtnHTML('💪', 'Daha Güçlü Mermiler', state.upgrades.bulletDmg + 1, dc)
+  buyPierceBtn.innerHTML = mkShopBtnHTML('👻', 'Delici Mermi', state.upgrades.pierce + 1, pc)
+  buyBulletCountBtn.innerHTML = mkShopBtnHTML('➕2️⃣', 'Daha Çok Mermi At', state.upgrades.bulletCount + 1, bc)
+  buyAmmoCapBtn.innerHTML = mkShopBtnHTML('⛽', 'Daha Büyük Şarjör', state.upgrades.ammoCap + 1, ac)
   buyFireRateBtn.disabled = state.money < fc; buyBulletDmgBtn.disabled = state.money < dc; buyPierceBtn.disabled = state.money < pc; buyBulletCountBtn.disabled = state.money < bc; buyAmmoCapBtn.disabled = state.money < ac
 }
 
@@ -901,17 +889,6 @@ function drawCrystalBar() {
   ctx.fillStyle = fill >= CFG.CRYSTAL_BAR_PULSE_THRESHOLD ? '#ffffff' : '#94a3b8'; ctx.font = `bold ${barH - 4}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`💎 ${state.crystals} / ${cost}  —  SEVİYE ${state.inRunUpgradesCount + 1}`, world.w / 2, barY + barH / 2); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left'
 }
 
-function drawAmmoBar() {
-  const maxAmmo = getMaxAmmo(); const fill = state.ammo / maxAmmo; const barH = CFG.AMMO_BAR_H, barY = CFG.CRYSTAL_BAR_Y + CFG.CRYSTAL_BAR_H + CFG.AMMO_BAR_TOP_MARGIN, margin = CFG.CRYSTAL_BAR_MARGIN, barX = margin, barW = world.w - margin * 2
-  ctx.fillStyle = '#0a1628'; ctx.fillRect(barX, barY, barW, barH)
-  if (fill > 0) {
-    const isLow = fill <= CFG.AMMO_LOW_THRESHOLD; const barColor = fill > CFG.HUD_HP_MID ? '#22c55e' : fill > CFG.AMMO_LOW_THRESHOLD ? '#f97316' : '#ef4444'
-    if (isLow) { ctx.save(); ctx.shadowBlur = CFG.AMMO_BAR_PULSE_SHADOW_BASE + CFG.AMMO_BAR_PULSE_SHADOW_AMP * Math.sin(state.time * CFG.AMMO_BAR_PULSE_FREQ); ctx.shadowColor = '#ef4444'; ctx.fillStyle = barColor; ctx.fillRect(barX, barY, barW * fill, barH); ctx.restore() } else { ctx.fillStyle = barColor; ctx.fillRect(barX, barY, barW * fill, barH) }
-  }
-  ctx.strokeStyle = '#1e3a5f'; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, barH)
-  ctx.fillStyle = fill <= CFG.AMMO_LOW_THRESHOLD ? '#ef4444' : '#94a3b8'; ctx.font = `bold ${barH - 4}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(`🔫 ${Math.floor(state.ammo)} / ${maxAmmo}  —  MERMİ`, world.w / 2, barY + barH / 2); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left'
-}
-
 function drawCanvasButton(cx, cy, w, h, label, bg, textColor, fontSize) {
   const x = cx - w / 2, y = cy - h / 2
   ctx.save(); ctx.shadowBlur = CFG.CANVAS_BTN_SHADOW_BLUR; ctx.shadowColor = bg; ctx.fillStyle = bg; ctx.beginPath(); ctx.roundRect(x, y, w, h, CFG.CANVAS_BTN_RADIUS); ctx.fill(); ctx.restore()
@@ -926,6 +903,12 @@ function drawTurret() {
   ctx.fillStyle = '#1e293b'; ctx.fillRect(barX, barY, barW, CFG.TURRET_HP_BAR_H)
   // Tester: blue starting color and dimmed red drained color for turret ammo bar
   const barColor = ammoPct > CFG.AMMO_LOW_THRESHOLD ? '#3b82f6' : '#991b1b'; ctx.fillStyle = barColor; ctx.fillRect(barX, barY, barW * ammoPct, CFG.TURRET_HP_BAR_H)
+  
+  // Bullet icon next to turret ammo bar
+  ctx.fillStyle = '#fff'; ctx.font = '10px Inter, system-ui'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'
+  ctx.fillText('🟡', barX - 4, barY + CFG.TURRET_HP_BAR_H / 2)
+  ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left'
+
   ctx.save(); ctx.shadowBlur = CFG.TURRET_BARREL_SHADOW_BLUR; ctx.shadowColor = '#38bdf8'; ctx.fillStyle = '#38bdf8'; ctx.fillRect(t.x - bw / 2, t.y - th / 2 - bh, bw, bh); ctx.restore()
   ctx.fillStyle = '#7dd3fc'; ctx.fillRect(t.x - tw / 2, t.y - th / 2, tw, th); ctx.fillStyle = '#0ea5e9'; ctx.fillRect(t.x - tw / 2, t.y, tw, CFG.TURRET_ACCENT_STRIPE_H)
 }
@@ -991,7 +974,7 @@ function drawPlayingScreen() {
     if (ex.isPaddle) { grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.5, '#60a5fa'); grad.addColorStop(1, 'transparent') } else { grad.addColorStop(0, '#ffdd44'); grad.addColorStop(0.4, '#ff6600'); grad.addColorStop(1, 'transparent') }
     ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(ex.x, ex.y, Math.max(1, ex.r), 0, Math.PI * 2); ctx.fill(); ctx.restore()
   }
-  drawCrystalBar(); drawAmmoBar(); drawEventProgressBar(); drawHordeBanner(); drawNotification()
+  drawCrystalBar(); drawEventProgressBar(); drawHordeBanner(); drawNotification()
 }
 
 function draw() { ctx.clearRect(0, 0, world.w, world.h); switch (state.screen) { case SCREEN.MENU: drawMenuScreen(); break; case SCREEN.COUNTDOWN: drawCountdownScreen(); break; case SCREEN.PLAYING: drawPlayingScreen(); break; case SCREEN.END: drawEndScreen(); break } }
