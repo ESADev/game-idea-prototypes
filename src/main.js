@@ -13,58 +13,58 @@ const IN_RUN_UPGRADE_DEFS = [
   {
     key: 'fireRate',
     weight: () => CFG.WEIGHT_FIRE_RATE,
-    label: '🌧️ Mermi Yağmuru',
+    label: 'Daha Hızlı Ateş Et',
     desc: () => {
       const cur = getFireRate()
-      const next = cur * CFG.BULLET_FIRE_RATE_MULT
-      return `Saniyede edilen ateş miktarı ${cur.toFixed(1)}/s → +${((CFG.BULLET_FIRE_RATE_MULT - 1) * 100).toFixed(0)}%'a çıkar!`
+      return `Seviye ${state.inRunUpgrades.fireRate + 1}'e yükselt! (Mevcut: ${cur.toFixed(1)}/sn)`
     },
   },
   {
     key: 'bulletDmg',
     weight: () => CFG.WEIGHT_BULLET_DMG,
-    label: '💪 Mermi Gücü',
+    label: 'Daha Güçlü Mermiler',
     desc: () => {
       const cur = getBulletDmg()
-      const next = Math.round(cur * CFG.BULLET_DAMAGE_MULT)
-      return `Mevcut: ${cur} hasar → +${((CFG.BULLET_DAMAGE_MULT - 1) * 100).toFixed(0)}%`
+      return `Seviye ${state.inRunUpgrades.bulletDmg + 1}'e yükselt! (Mevcut: ${cur} hasar)`
     },
   },
   {
     key: 'pierce',
     weight: () => CFG.WEIGHT_PIERCE,
-    label: '👻 Deler Geçer',
-    desc: () => `${getPierceLevel()} +1 delicilik geliştirmesi!`,
+    label: 'Düşmanların İçinden Geç',
+    desc: () => `Seviye ${state.inRunUpgrades.pierce + 1}'e yükselt! (Mevcut: ${getPierceLevel()} mermi delme)`,
   },
   {
     key: 'shield',
     weight: () => CFG.WEIGHT_SHIELD,
-    label: '🛡️ Ekstra Surlar',
-    desc: () => `${state.inRunUpgrades.shield} +${CFG.SHIELD_STACKS_PER_PICK} sur ekle!`,
+    label: 'Kaleyi Daha İyi Koru',
+    desc: () => `Seviye ${state.inRunUpgrades.shield + 1}'e yükselt! (Mevcut: ${state.inRunUpgrades.shield} sur kalkanı)`,
   },
+  /* magnet removed per feedback
   {
     key: 'magnet',
-    weight: () => state.inRunUpgrades.magnet > 0 ? 0 : CFG.WEIGHT_MAGNET,
-    label: '🧲 Kristal Mıknatısı',
+    weight: () => 0,
+    label: 'Daha Uzaktan Topla',
     desc: () => 'Kristaller sana gelsin!',
+  },
+  */
+  {
+    key: 'reloadSpeed',
+    weight: () => CFG.WEIGHT_RELOAD_SPEED,
+    label: 'Daha Hızlı Şarjör Yenile',
+    desc: () => `Seviye ${state.inRunUpgrades.reloadSpeed + 1}'e yükselt! (Mevcut: ${getReloadRate().toFixed(1)}/sn)`,
   },
   {
     key: 'doubleGems',
     weight: () => CFG.WEIGHT_DOUBLE_GEMS,
-    label: '💎 Jeoloji Mühendisi',
-    desc: () => `${state.inRunUpgrades.doubleGems} => Daha çok, daha çok...`,
+    label: 'Daha Çok Kristal Bul',
+    desc: () => `Seviye ${state.inRunUpgrades.doubleGems + 1}'e yükselt!`,
   },
   {
     key: 'bulletCount',
     weight: () => CFG.WEIGHT_BULLET_COUNT,
-    label: '➕2️⃣ Çoklu Mermi',
-    desc: () => `Tek seferde atılan mermi: ${getTotalBullets()} +2 mermi, gerisini onlar düşünsün!`,
-  },
-  {
-    key: 'ammoCapacity',
-    weight: () => CFG.WEIGHT_AMMO_CAPACITY,
-    label: '⛽ Şarjör Boyutu',
-    desc: () => `Toplam ${getMaxAmmo() + CFG.AMMO_CAPACITY_PER_UPGRADE} mermiye çık!`,
+    label: 'Daha Çok Mermi At',
+    desc: () => `Seviye ${state.inRunUpgrades.bulletCount + 1}'e yükselt! (Mevcut: ${getTotalBullets()} mermi)`,
   },
 ]
 
@@ -86,6 +86,7 @@ app.innerHTML = `
           <button id="buy-bullet-dmg"   class="shop-btn"></button>
           <button id="buy-pierce"       class="shop-btn"></button>
           <button id="buy-bullet-count" class="shop-btn"></button>
+          <button id="buy-ammo-cap"     class="shop-btn"></button>
         </div>
         <button id="shop-back" class="start-btn">← Geri Dön</button>
       </div>
@@ -121,6 +122,7 @@ const buyFireRateBtn    = document.querySelector('#buy-fire-rate')
 const buyBulletDmgBtn   = document.querySelector('#buy-bullet-dmg')
 const buyPierceBtn      = document.querySelector('#buy-pierce')
 const buyBulletCountBtn = document.querySelector('#buy-bullet-count')
+const buyAmmoCapBtn     = document.querySelector('#buy-ammo-cap')
 const shopBackBtn       = document.querySelector('#shop-back')
 const upgradeMenuEl     = document.querySelector('#upgrade-menu')
 const upgradeMenuH2El   = document.querySelector('#upgrade-menu-h2')
@@ -172,8 +174,8 @@ const state = {
   bestScore: 0,
   isNewRecord: false,
 
-  upgrades:          { fireRate: 0, bulletDmg: 0, pierce: 0, bulletCount: 0 },
-  inRunUpgrades:     { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0, ammoCapacity: 0 },
+  upgrades:          { fireRate: 0, bulletDmg: 0, pierce: 0, bulletCount: 0, ammoCap: 0 },
+  inRunUpgrades:     { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0, reloadSpeed: 0 },
   inRunUpgradesCount: 0,
 
   bullets:        [],
@@ -181,12 +183,15 @@ const state = {
   crystalPickups: [],
   coinPickups:    [],
   explosions:     [],
+  castleParticles: [],
 
   fireTimer:    0,
   ammo:         CFG.AMMO_MAX_BASE,
   lastFireTime: -999,
   emptyAmmoHoldTime: 0,
-  emptyAmmoWarnShown: false,
+  ammoWarningCount: 0,
+  ammoWarningWindowStart: 0,
+  ammoWarnMode: false, // false = "MERMİ BİTTİ", true = "Basmayı bırak..."
 
   // ── Boss / horde / tier / notification ──────────────────────────────────
   boss:          null,               // boss object while alive, null otherwise
@@ -205,7 +210,7 @@ const state = {
     x:           world.w / 2,
     y:           TURRET_START_Y,
     vx:          0,
-    hp:          CFG.TURRET_MAX_HP,
+    hp:          CFG.TURRET_MAX_HP, // kept for collision logic, though not displayed
     lastHitTime: -999,
   },
 
@@ -232,10 +237,12 @@ function getTotalBullets() {
     + 2 * state.inRunUpgrades.bulletCount
 }
 function getMaxAmmo() {
-  return CFG.AMMO_MAX_BASE + state.inRunUpgrades.ammoCapacity * CFG.AMMO_CAPACITY_PER_UPGRADE
+  return CFG.AMMO_MAX_BASE + state.upgrades.ammoCap * CFG.AMMO_CAPACITY_PER_UPGRADE
+}
+function getReloadRate() {
+  return CFG.AMMO_REGEN_RATE_BASE + state.inRunUpgrades.reloadSpeed * CFG.AMMO_REGEN_RATE_INC
 }
 // Crystal cost for the next in-run upgrade (exponential like Vampire Survivors)
-// n=0→5, n=1→8, n=2→12, n=3→18, n=4→28, n=5→44 … (×1.55 each step)
 function getNextUpgradeCost() {
   return Math.round(CFG.CRYSTAL_BASE_COST * Math.pow(CFG.CRYSTAL_COST_MULT, state.inRunUpgradesCount))
 }
@@ -245,6 +252,7 @@ function getCost(type) {
     bulletDmg:   CFG.COST_BASE_BULLET_DMG,
     pierce:      CFG.COST_BASE_PIERCE,
     bulletCount: CFG.COST_BASE_BULLET_COUNT,
+    ammoCap:     CFG.COST_BASE_AMMO_CAP,
   }
   return Math.floor(bases[type] * Math.pow(CFG.COST_SCALE_FACTOR, state.upgrades[type]))
 }
@@ -270,6 +278,7 @@ function loadUpgrades() {
         state.upgrades.bulletDmg   = Number(parsed.upgrades.bulletDmg)   || 0
         state.upgrades.pierce      = Number(parsed.upgrades.pierce)      || 0
         state.upgrades.bulletCount = Number(parsed.upgrades.bulletCount) || 0
+        state.upgrades.ammoCap     = Number(parsed.upgrades.ammoCap)     || 0
       }
       state.money = Number(parsed?.money) || 0
     }
@@ -342,11 +351,13 @@ function resetRun() {
   state.crystalPickups = []
   state.coinPickups    = []
   state.explosions     = []
+  state.castleParticles = []
   state.lastFireTime   = -999
   state.emptyAmmoHoldTime = 0
-  state.emptyAmmoWarnShown = false
+  state.ammoWarningCount = 0
+  state.ammoWarningWindowStart = 0
 
-  state.inRunUpgrades      = { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0, ammoCapacity: 0 }
+  state.inRunUpgrades      = { fireRate: 0, bulletDmg: 0, pierce: 0, shield: 0, magnet: 0, doubleGems: 0, bulletCount: 0, reloadSpeed: 0 }
   state.inRunUpgradesCount = 0
   state.ammo               = getMaxAmmo()
 
@@ -371,14 +382,43 @@ function resetRun() {
 //  Damage helpers
 // ─────────────────────────────────────────────────────────────────────────────
 function applyTurretHit(dmg) {
-  state.turret.hp          = Math.max(0, state.turret.hp - dmg)
+  // state.turret.hp = Math.max(0, state.turret.hp - dmg) // Turret no longer has HP display
   state.turret.lastHitTime = state.time
+  // Contact with turret still hits castle now per new simplified logic? 
+  // No, tester said remove player health system, use bar for ammo. 
+  // We'll treat turret contact as an immediate shield loss or small castle hit.
+  applyCastleDamage(Math.round(dmg / 2))
 }
 function applyCastleDamage(dmg) {
   if (state.inRunUpgrades.shield > 0) {
     state.inRunUpgrades.shield -= 1
   } else {
     state.castle.hp = Math.max(0, state.castle.hp - dmg)
+    spawnCastleParticles()
+  }
+}
+
+function spawnCastleParticles() {
+  const cY = world.h - CFG.CASTLE_H
+  for (let i = 0; i < CFG.CASTLE_PARTICLE_COUNT; i++) {
+    state.castleParticles.push({
+      x: Math.random() * world.w,
+      y: cY + Math.random() * CFG.CASTLE_H,
+      vx: (Math.random() - 0.5) * CFG.CASTLE_PARTICLE_SPEED,
+      vy: -Math.random() * CFG.CASTLE_PARTICLE_SPEED,
+      age: 0
+    })
+  }
+}
+
+function updateCastleParticles(dt) {
+  for (let i = state.castleParticles.length - 1; i >= 0; i--) {
+    const p = state.castleParticles[i]
+    p.x += p.vx * dt
+    p.y += p.vy * dt
+    p.vy += 200 * dt // gravity
+    p.age += dt
+    if (p.age >= CFG.CASTLE_PARTICLE_MAX_AGE) state.castleParticles.splice(i, 1)
   }
 }
 
@@ -386,9 +426,8 @@ function applyCastleDamage(dmg) {
 //  Physics updates
 // ─────────────────────────────────────────────────────────────────────────────
 function updateTurretHP(dt) {
-  if (state.time - state.turret.lastHitTime >= CFG.TURRET_HP_REGEN_DELAY) {
-    state.turret.hp = Math.min(CFG.TURRET_MAX_HP, state.turret.hp + CFG.TURRET_HP_REGEN_RATE * dt)
-  }
+  // Regenerate "hidden" turret HP for collision logic if needed, but not used in UI
+  state.turret.hp = Math.min(CFG.TURRET_MAX_HP, state.turret.hp + CFG.TURRET_HP_REGEN_RATE * dt)
 }
 
 function updateTurret(dt) {
@@ -416,8 +455,9 @@ function updateTurret(dt) {
 }
 
 function updateAmmo(dt) {
+  // Tester: ammo refilling system has 0 time to wait before starting to reload
   if (state.time - state.lastFireTime >= CFG.AMMO_REGEN_DELAY) {
-    state.ammo = Math.min(getMaxAmmo(), state.ammo + CFG.AMMO_REGEN_RATE * dt)
+    state.ammo = Math.min(getMaxAmmo(), state.ammo + getReloadRate() * dt)
   }
 }
 
@@ -426,14 +466,26 @@ function updateOutOfAmmoWarning(dt) {
   const isOutOfAmmo = state.ammo < CFG.AMMO_COST_PER_VOLLEY
   if (tryingToShoot && isOutOfAmmo) {
     state.emptyAmmoHoldTime += dt
-    if (!state.emptyAmmoWarnShown && state.emptyAmmoHoldTime >= CFG.AMMO_EMPTY_WARN_HOLD) {
-      triggerNotification('🚫 MERMİ BİTTİ!', '#ef4444', { yFrac: 0.5, font: 44, duration: 1.2 })
-      state.emptyAmmoWarnShown = true
+    if (state.emptyAmmoHoldTime >= CFG.AMMO_EMPTY_WARN_HOLD) {
+      // Logic for 2 times in 15 seconds
+      if (state.time > state.ammoWarningWindowStart + 15) {
+        state.ammoWarningCount = 1
+        state.ammoWarningWindowStart = state.time
+      } else {
+        state.ammoWarningCount++
+      }
+
+      if (state.ammoWarningCount >= 3) {
+        triggerNotification('Basmayı bırak, şarjör yenilenemiyor!', '#ef4444', { yFrac: 0.5, font: 24, duration: 2.0 })
+      } else {
+        triggerNotification('🚫 MERMİ BİTTİ!', '#ef4444', { yFrac: 0.5, font: 44, duration: 1.2 })
+      }
+      
+      state.emptyAmmoHoldTime = 0 // Reset to avoid spam every frame
     }
     return
   }
   state.emptyAmmoHoldTime = 0
-  if (!tryingToShoot) state.emptyAmmoWarnShown = false
 }
 
 function fireBullets() {
@@ -787,16 +839,17 @@ function applyInRunUpgrade(key) {
 }
 
 function mkShopBtnHTML(emoji, name, level, detail, cost) {
-  return `<span class="shop-btn-title">${emoji} ${name}</span><span class="shop-btn-sub">Seviye ${level} · ${detail} · 💰 ${cost}</span>`
+  return `<span class="shop-btn-title">${emoji} ${name}</span><span class="shop-btn-sub">Seviye ${level}'e yükselt! · ${detail} · 💰 ${cost}</span>`
 }
 
 function renderShopButtons() {
-  const fc = getCost('fireRate'), dc = getCost('bulletDmg'), pc = getCost('pierce'), bc = getCost('bulletCount')
-  buyFireRateBtn.innerHTML = mkShopBtnHTML('🌧️', 'Mermi Yağmuru', state.upgrades.fireRate, `+%${((CFG.BULLET_FIRE_RATE_MULT - 1) * 100).toFixed(0)} hız`, fc)
-  buyBulletDmgBtn.innerHTML = mkShopBtnHTML('💪', 'Mermi Gücü', state.upgrades.bulletDmg, `+%${((CFG.BULLET_DAMAGE_MULT - 1) * 100).toFixed(0)} hasar`, dc)
-  buyPierceBtn.innerHTML = mkShopBtnHTML('👻', 'Deler Geçer', state.upgrades.pierce, '+1 delici', pc)
-  buyBulletCountBtn.innerHTML = mkShopBtnHTML('➕2️⃣', 'Çoklu Mermi', state.upgrades.bulletCount, '+2 mermi', bc)
-  buyFireRateBtn.disabled = state.money < fc; buyBulletDmgBtn.disabled = state.money < dc; buyPierceBtn.disabled = state.money < pc; buyBulletCountBtn.disabled = state.money < bc
+  const fc = getCost('fireRate'), dc = getCost('bulletDmg'), pc = getCost('pierce'), bc = getCost('bulletCount'), ac = getCost('ammoCap')
+  buyFireRateBtn.innerHTML = mkShopBtnHTML('🌧️', 'Daha Hızlı Ateş Et', state.upgrades.fireRate, `+%${((CFG.BULLET_FIRE_RATE_MULT - 1) * 100).toFixed(0)} hız`, fc)
+  buyBulletDmgBtn.innerHTML = mkShopBtnHTML('💪', 'Daha Güçlü Mermiler', state.upgrades.bulletDmg, `+%${((CFG.BULLET_DAMAGE_MULT - 1) * 100).toFixed(0)} hasar`, dc)
+  buyPierceBtn.innerHTML = mkShopBtnHTML('👻', 'Düşmanların İçinden Geç', state.upgrades.pierce, '+1 delici', pc)
+  buyBulletCountBtn.innerHTML = mkShopBtnHTML('➕2️⃣', 'Daha Çok Mermi At', state.upgrades.bulletCount, '+2 mermi', bc)
+  buyAmmoCapBtn.innerHTML = mkShopBtnHTML('⛽', 'Daha Büyük Şarjör', state.upgrades.ammoCap, `+${CFG.AMMO_CAPACITY_PER_UPGRADE} kapasite`, ac)
+  buyFireRateBtn.disabled = state.money < fc; buyBulletDmgBtn.disabled = state.money < dc; buyPierceBtn.disabled = state.money < pc; buyBulletCountBtn.disabled = state.money < bc; buyAmmoCapBtn.disabled = state.money < ac
 }
 
 function drawCastle() {
@@ -820,10 +873,19 @@ function drawCastle() {
   ctx.fillStyle = '#0a052e'; ctx.fillRect(gX, cY, gateW, CFG.CASTLE_GATE_H); ctx.beginPath(); ctx.arc(cW / 2, cY, gateW / 2, Math.PI, 0); ctx.fill()
   const hpPct = state.castle.hp / CFG.CASTLE_MAX_HP; const barX = tW + CFG.CASTLE_HP_BAR_INSET, barW = cW - tW * 2 - CFG.CASTLE_HP_BAR_INSET * 2, barY = cY + CFG.CASTLE_HP_BAR_Y_OFFSET, barH = CFG.CASTLE_HP_BAR_H
   ctx.fillStyle = '#0a0624'; ctx.fillRect(barX, barY, barW, barH)
-  const barColor = hpPct > CFG.HUD_HP_MID ? '#7c3aed' : hpPct > CFG.HUD_HP_LOW ? '#f97316' : '#ef4444'; ctx.fillStyle = barColor; ctx.fillRect(barX, barY, barW * hpPct, barH)
+  // Tester: vivid health bar green
+  const barColor = hpPct > CFG.HUD_HP_MID ? '#22c55e' : hpPct > CFG.HUD_HP_LOW ? '#f97316' : '#ef4444'; ctx.fillStyle = barColor; ctx.fillRect(barX, barY, barW * hpPct, barH)
   if (hpPct <= CFG.HUD_HP_LOW) { ctx.save(); ctx.shadowBlur = CFG.ANIM_CASTLE_HP_PULSE_SHADOW_BASE + CFG.ANIM_CASTLE_HP_PULSE_SHADOW_AMP * Math.sin(state.time * CFG.ANIM_CASTLE_HP_PULSE_FREQ); ctx.shadowColor = '#ef4444'; ctx.fillRect(barX, barY, barW * hpPct, barH); ctx.restore() }
-  ctx.fillStyle = '#a78bfa'; ctx.font = `bold ${CFG.CASTLE_HP_LABEL_FONT}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(`🏰 KALE  ${Math.ceil(state.castle.hp)} / ${CFG.CASTLE_MAX_HP}`, cW / 2, cY + CFG.CASTLE_HP_LABEL_Y_OFFSET); ctx.textBaseline = 'alphabetic'
+  ctx.fillStyle = '#ffffff'; ctx.font = `bold ${CFG.CASTLE_HP_LABEL_FONT}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(`🏰 KALE CANI: ${Math.ceil(state.castle.hp)} / ${CFG.CASTLE_MAX_HP}`, cW / 2, cY + CFG.CASTLE_HP_LABEL_Y_OFFSET); ctx.textBaseline = 'alphabetic'
   if (state.inRunUpgrades.shield > 0) { ctx.save(); ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 4; ctx.shadowBlur = 20; ctx.shadowColor = '#60a5fa'; const shieldY = cY - CFG.CASTLE_BATT_H - 10; ctx.beginPath(); ctx.moveTo(0, shieldY); ctx.lineTo(cW, shieldY); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Inter, system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillText(`${state.inRunUpgrades.shield} Sur`, 10, shieldY + 18); ctx.restore() }
+  
+  // Castle Particles
+  for (const p of state.castleParticles) {
+    const alpha = 1 - p.age / CFG.CASTLE_PARTICLE_MAX_AGE
+    ctx.fillStyle = `rgba(167, 139, 250, ${alpha})`
+    ctx.fillRect(p.x, p.y, 3, 3)
+  }
+  
   ctx.textAlign = 'left'
 }
 
@@ -859,9 +921,11 @@ function drawCanvasButton(cx, cy, w, h, label, bg, textColor, fontSize) {
 
 function drawTurret() {
   const t = state.turret; const tw = CFG.TURRET_WIDTH, th = CFG.TURRET_HEIGHT, bw = CFG.TURRET_BARREL_W, bh = CFG.TURRET_BARREL_H
-  const hpPct = t.hp / CFG.TURRET_MAX_HP, hpBarW = tw + CFG.TURRET_HP_BAR_EXTRA_W, hpBarX = t.x - hpBarW / 2, hpBarY = t.y + th / 2 + CFG.TURRET_HP_BAR_Y_GAP
-  ctx.fillStyle = '#1e293b'; ctx.fillRect(hpBarX, hpBarY, hpBarW, CFG.TURRET_HP_BAR_H)
-  ctx.fillStyle = hpPct > CFG.HUD_HP_MID ? '#22c55e' : hpPct > CFG.HUD_HP_LOW ? '#f97316' : '#ef4444'; ctx.fillRect(hpBarX, hpBarY, hpBarW * hpPct, CFG.TURRET_HP_BAR_H)
+  const ammoPct = state.ammo / getMaxAmmo()
+  const barW = tw + CFG.TURRET_HP_BAR_EXTRA_W, barX = t.x - barW / 2, barY = t.y + th / 2 + CFG.TURRET_HP_BAR_Y_GAP
+  ctx.fillStyle = '#1e293b'; ctx.fillRect(barX, barY, barW, CFG.TURRET_HP_BAR_H)
+  // Tester: blue starting color and dimmed red drained color for turret ammo bar
+  const barColor = ammoPct > CFG.AMMO_LOW_THRESHOLD ? '#3b82f6' : '#991b1b'; ctx.fillStyle = barColor; ctx.fillRect(barX, barY, barW * ammoPct, CFG.TURRET_HP_BAR_H)
   ctx.save(); ctx.shadowBlur = CFG.TURRET_BARREL_SHADOW_BLUR; ctx.shadowColor = '#38bdf8'; ctx.fillStyle = '#38bdf8'; ctx.fillRect(t.x - bw / 2, t.y - th / 2 - bh, bw, bh); ctx.restore()
   ctx.fillStyle = '#7dd3fc'; ctx.fillRect(t.x - tw / 2, t.y - th / 2, tw, th); ctx.fillStyle = '#0ea5e9'; ctx.fillRect(t.x - tw / 2, t.y, tw, CFG.TURRET_ACCENT_STRIPE_H)
 }
@@ -888,7 +952,7 @@ function drawMenuScreen() {
   const titleY = Math.round(world.h * CFG.MENU_TITLE_Y_FRAC)
   ctx.save(); ctx.shadowBlur = 28; ctx.shadowColor = '#7c3aed'; ctx.fillStyle = '#c4b5fd'; ctx.textAlign = 'center'; ctx.font = `bold ${CFG.MENU_TITLE_FONT1}px Inter, system-ui, sans-serif`; ctx.fillText('MEGA', world.w / 2, titleY); ctx.font = `bold ${CFG.MENU_TITLE_FONT2}px Inter, system-ui, sans-serif`; ctx.fillText('PONG', world.w / 2, titleY + CFG.MENU_TITLE_LINE_GAP); ctx.restore()
   ctx.fillStyle = '#94a3b8'; ctx.font = `${CFG.MENU_SUB_FONT}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('', world.w / 2, Math.round(world.h * CFG.MENU_SUB_Y_FRAC))
-  ctx.fillStyle = '#64748b'; ctx.font = `${CFG.MENU_STATS_FONT}px Inter, system-ui, sans-serif`; ctx.fillText(`💰 Altın: ${state.money}   ➕2️⃣ Çoklu Mermi: Sv.${state.upgrades.bulletCount}   👻 Delici: Sv.${state.upgrades.pierce}`, world.w / 2, Math.round(world.h * CFG.MENU_STATS1_Y_FRAC)); ctx.fillText(`🌧️ Mermi Yağmuru: Sv.${state.upgrades.fireRate}   💪 Güç: Sv.${state.upgrades.bulletDmg}`, world.w / 2, Math.round(world.h * CFG.MENU_STATS2_Y_FRAC))
+  ctx.fillStyle = '#64748b'; ctx.font = `${CFG.MENU_STATS_FONT}px Inter, system-ui, sans-serif`; ctx.fillText(`💰 Altın: ${state.money}   ➕2️⃣ Mermi At: Sv.${state.upgrades.bulletCount}   👻 İçinden Geç: Sv.${state.upgrades.pierce}`, world.w / 2, Math.round(world.h * CFG.MENU_STATS1_Y_FRAC)); ctx.fillText(`🌧️ Hızlı Ateş: Sv.${state.upgrades.fireRate}   💪 Mermi Gücü: Sv.${state.upgrades.bulletDmg}   ⛽ Şarjör: Sv.${state.upgrades.ammoCap}`, world.w / 2, Math.round(world.h * CFG.MENU_STATS2_Y_FRAC))
   canvasBtns.menuPlay = drawCanvasButton(world.w / 2, Math.round(world.h * CFG.MENU_PLAY_Y_FRAC), CFG.MENU_PLAY_BTN_W, CFG.MENU_PLAY_BTN_H, '▶  OYNA', '#16a34a', '#bbf7d0', CFG.MENU_PLAY_BTN_FONT)
   canvasBtns.menuShop = drawCanvasButton(world.w / 2, Math.round(world.h * CFG.MENU_SHOP_Y_FRAC), CFG.MENU_SHOP_BTN_W, CFG.MENU_SHOP_BTN_H, '⚙  Atölye', '#1d4ed8', '#bfdbfe', CFG.MENU_SHOP_BTN_FONT)
   if (CFG.DEV_ENABLED) { canvasBtns.menuDev = drawCanvasButton(world.w / 2 - 110, Math.round(world.h * 0.95), 200, 30, `DEV: ${state.devTimewarp ? 'ON' : 'OFF'}`, '#475569', '#cbd5e1', 12); const resetLabel = state.devResetFeedback || 'KAYITLARI SİL'; const resetColor = state.devResetFeedback === 'TEMİZLENDİ' ? '#16a34a' : state.devResetFeedback === 'HATA' ? '#dc2626' : '#991b1b'; canvasBtns.menuDevReset = drawCanvasButton(world.w / 2 + 100, Math.round(world.h * 0.95), 180, 30, resetLabel, resetColor, '#fecaca', 12) }
@@ -950,7 +1014,7 @@ function loop(now) {
   if (state.screen === SCREEN.MENU || state.screen === SCREEN.END) { draw(); requestAnimationFrame(loop); return }
   if (state.screen === SCREEN.COUNTDOWN) { state.countdownTimer -= dt; if (state.countdownTimer <= 0) startPlaying(); draw(); requestAnimationFrame(loop); return }
   if (!upgradePaused) {
-    state.time += dt; updateTurret(dt); updateTurretHP(dt)
+    state.time += dt; updateTurret(dt); updateTurretHP(dt); updateCastleParticles(dt)
     if (mouseDown || keys.shoot) state.lastFireTime = state.time
     state.fireTimer -= dt
     if (state.fireTimer <= 0) { state.fireTimer = 1 / getFireRate(); if ((mouseDown || keys.shoot) && state.ammo >= CFG.AMMO_COST_PER_VOLLEY) { fireBullets(); state.ammo -= CFG.AMMO_COST_PER_VOLLEY } }
@@ -971,7 +1035,7 @@ function handleCanvasTap(cx, cy) {
     if (hitTest(canvasBtns.menuPlay, cx, cy)) { startCountdown(); return true }
     if (hitTest(canvasBtns.menuShop, cx, cy)) { openShop(); return true }
     if (CFG.DEV_ENABLED && hitTest(canvasBtns.menuDev, cx, cy)) { state.devTimewarp = !state.devTimewarp; state.devMagnet = state.devTimewarp; return true }
-    if (CFG.DEV_ENABLED && hitTest(canvasBtns.menuDevReset, cx, cy)) { try { localStorage.clear(); state.money = 0; state.upgrades = { fireRate: 0, bulletDmg: 0, pierce: 0, bulletCount: 0 }; state.bestScore = 0; state.devResetFeedback = 'TEMİZLENDİ' } catch { state.devResetFeedback = 'HATA' }; setTimeout(() => { state.devResetFeedback = null }, 2000); return true }
+    if (CFG.DEV_ENABLED && hitTest(canvasBtns.menuDevReset, cx, cy)) { try { localStorage.clear(); state.money = 0; state.upgrades = { fireRate: 0, bulletDmg: 0, pierce: 0, bulletCount: 0, ammoCap: 0 }; state.bestScore = 0; state.devResetFeedback = 'TEMİZLENDİ' } catch { state.devResetFeedback = 'HATA' }; setTimeout(() => { state.devResetFeedback = null }, 2000); return true }
   }
   if (state.screen === SCREEN.END) { if (hitTest(canvasBtns.endRestart, cx, cy)) { startCountdown(); return true }; if (hitTest(canvasBtns.endMainMenu, cx, cy)) { goToMenu(); return true } }
   return false
@@ -993,6 +1057,7 @@ buyFireRateBtn.addEventListener('click', () => buyUpgrade('fireRate'))
 buyBulletDmgBtn.addEventListener('click', () => buyUpgrade('bulletDmg'))
 buyPierceBtn.addEventListener('click', () => buyUpgrade('pierce'))
 buyBulletCountBtn.addEventListener('click', () => buyUpgrade('bulletCount'))
+buyAmmoCapBtn.addEventListener('click', () => buyUpgrade('ammoCap'))
 shopBackBtn.addEventListener('click', () => { shopEl.classList.add('hidden'); saveUpgrades() })
 
 if (!CanvasRenderingContext2D.prototype.roundRect) {

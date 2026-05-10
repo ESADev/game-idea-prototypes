@@ -64,8 +64,9 @@ export const CFG = {
   // ── Ammo system ────────────────────────────────────────────────────────────
   AMMO_MAX_BASE:              35,   
   AMMO_COST_PER_VOLLEY:       1,    
-  AMMO_REGEN_RATE:            15,   
-  AMMO_REGEN_DELAY:           0.6,  
+  AMMO_REGEN_RATE_BASE:       15,   // base ammo per second regenerated
+  AMMO_REGEN_RATE_INC:        8,    // additional regen per in-run upgrade level
+  AMMO_REGEN_DELAY:           0.0,  // seconds after releasing fire before regen begins (tester: make 0)
   AMMO_CAPACITY_PER_UPGRADE:  25,   
   AMMO_LOW_THRESHOLD:         0.25, 
   AMMO_EMPTY_WARN_HOLD:       0.8,  
@@ -92,10 +93,6 @@ export const CFG = {
   TURRET_BARREL_W:           10,   
   TURRET_BARREL_H:           26,   
   TURRET_BARREL_SHADOW_BLUR: 8,    
-  TURRET_MAX_HP:             100,  
-  TURRET_HP_PER_HIT:         15,   
-  TURRET_HP_REGEN_RATE:      5,    
-  TURRET_HP_REGEN_DELAY:     2.5,  
 
   // ── Turret visual ──────────────────────────────────────────────────────────
   TURRET_HP_BAR_EXTRA_W:      12,  
@@ -254,6 +251,11 @@ export const CFG = {
   CASTLE_WINDOW_H:           22,
   CASTLE_WINDOW_Y_OFFSET:    14,
 
+  // ── Castle Damage Particles ────────────────────────────────────────────────
+  CASTLE_PARTICLE_COUNT:    8,
+  CASTLE_PARTICLE_MAX_AGE:  1.0,
+  CASTLE_PARTICLE_SPEED:    150,
+
   // ── Animation pulse frequencies ────────────────────────────────────────────
   ANIM_CASTLE_HP_PULSE_FREQ:        8,
   ANIM_CASTLE_HP_PULSE_SHADOW_BASE: 10,
@@ -359,6 +361,7 @@ export const CFG = {
   COST_BASE_BULLET_DMG:   80,
   COST_BASE_PIERCE:       120,
   COST_BASE_BULLET_COUNT: 120,
+  COST_BASE_AMMO_CAP:     100,
 
   // ── Rarity Colors ──────────────────────────────────────────────────────────
   RARITY_COMMON_HUE:    145,  
@@ -373,10 +376,10 @@ export const CFG = {
   WEIGHT_BULLET_DMG:    10,
   WEIGHT_PIERCE:        6,
   WEIGHT_SHIELD:        8,
-  WEIGHT_MAGNET:        3,
+  WEIGHT_MAGNET:        0,  // Removed (tester feedback)
   WEIGHT_DOUBLE_GEMS:   4,
   WEIGHT_BULLET_COUNT:  4,
-  WEIGHT_AMMO_CAPACITY: 10,
+  WEIGHT_RELOAD_SPEED:  8,
 
   // ── In-run upgrade stacking ────────────────────────────────────────────────
   SHIELD_STACKS_PER_PICK:  3,
