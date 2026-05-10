@@ -259,6 +259,7 @@ export const CFG = {
   CASTLE_PARTICLE_COUNT:    16,
   CASTLE_PARTICLE_MAX_AGE:  1.0,
   CASTLE_PARTICLE_SPEED:    300,
+  CASTLE_PARTICLE_SIZE:     6,
 
   // ── Animation pulse frequencies ────────────────────────────────────────────
   ANIM_CASTLE_HP_PULSE_FREQ:        8,

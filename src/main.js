@@ -870,8 +870,8 @@ function drawCastle() {
   // Castle Particles
   for (const p of state.castleParticles) {
     const alpha = 1 - p.age / CFG.CASTLE_PARTICLE_MAX_AGE
-    ctx.fillStyle = `rgba(167, 139, 250, ${alpha})`
-    ctx.fillRect(p.x, p.y, 3, 3)
+    ctx.fillStyle = `rgba(255, 20, 20, ${alpha})`
+    ctx.fillRect(p.x, p.y, CFG.CASTLE_PARTICLE_SIZE, CFG.CASTLE_PARTICLE_SIZE)
   }
   
   ctx.textAlign = 'left'
