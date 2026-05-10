@@ -83,8 +83,8 @@ export const CFG = {
   BULLET_SIDE_ANGLE_DEG:    10,  
 
   // ── Turret ─────────────────────────────────────────────────────────────────
-  TURRET_BASE_SPEED:         700,  
-  TURRET_ACCEL_RATE:         14,   
+  TURRET_BASE_SPEED:         1400,  
+  TURRET_ACCEL_RATE:         48,   
   TURRET_DECEL_RATE:         20,   
   TURRET_STEER_DEADZONE:     2,    
   TURRET_SNAP_MARGIN:        1,    
@@ -129,8 +129,8 @@ export const CFG = {
   EXPLOSION_BREACH_ELITE_MAXR:  72,   
 
   // ── Enemy (base) ───────────────────────────────────────────────────────────
-  ENEMY_SPAWN_INTERVAL_START:  1.5,    
-  ENEMY_SPAWN_RATE_RAMP:       0.005,  
+  ENEMY_SPAWN_INTERVAL_START:  1.45,    
+  ENEMY_SPAWN_RATE_RAMP:       0.0055,  
   ENEMY_SPAWN_INTERVAL_MIN:    0.05,   
   ENEMY_MAX_COUNT:             600,    
   ENEMY_BASE_RADIUS:           21,     
