@@ -213,7 +213,7 @@ export const CFG = {
 
   // ── Developer tools ────────────────────────────────────────────────────────
   DEV_ENABLED:       true,  
-  DEV_TIMEWARP_MULT: 2.5,   
+  DEV_TIMEWARP_MULT: 7.5,   
 
   // ── Notification overlay ───────────────────────────────────────────────────
   NOTIF_DURATION:       3.2,  
